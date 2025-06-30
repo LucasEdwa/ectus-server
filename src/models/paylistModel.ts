@@ -5,9 +5,11 @@ export const createPaylistsTable = async () => {
   await db.query(`
     CREATE TABLE IF NOT EXISTS paylists (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      company_id INT UNSIGNED NOT NULL,
       employee_id INT UNSIGNED NOT NULL,
       month DATE NOT NULL,
       pdf_url VARCHAR(255) NOT NULL,
+      FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
       FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);

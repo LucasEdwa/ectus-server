@@ -12,8 +12,8 @@ export const authResolvers = {
   Mutation: {
     async register(args: any) {
       console.log("Register args:", args); // Should now log the actual arguments
-      const { name, email, password, role } = args;
-      if (!name || !email || !password || !role) {
+      const { name, email, password, role, company_id } = args;
+      if (!name || !email || !password || !role || !company_id) {
         throw new Error("All fields are required");
       }
       const [existing]: any = await db.query("SELECT id FROM users WHERE email = ?", [email]);
@@ -23,8 +23,8 @@ export const authResolvers = {
       const hashed = await bcrypt.hash(password, 10);
       const registered = Math.floor(Date.now() / 1000); // current timestamp in seconds
       await db.query(
-        "INSERT INTO users (name, email, password, role, registered) VALUES (?, ?, ?, ?, ?)",
-        [name, email, hashed, role, registered]
+        "INSERT INTO users (name, email, password, role, registered, company_id) VALUES (?, ?, ?, ?, ?, ?)",
+        [name, email, hashed, role, registered, company_id]
       );
       return { message: "User registered" };
     },

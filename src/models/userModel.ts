@@ -3,6 +3,8 @@ import { db } from "./db";
 // Drop all user-related tables in correct order
 export const dropUserTables = async () => {
   await db.query("SET FOREIGN_KEY_CHECKS = 0");
+  await db.query("DROP TABLE IF EXISTS bills");
+  await db.query("DROP TABLE IF EXISTS expenses");
   await db.query("DROP TABLE IF EXISTS users_throttling");
   await db.query("DROP TABLE IF EXISTS users_resets");
   await db.query("DROP TABLE IF EXISTS users_remembered");
@@ -10,6 +12,7 @@ export const dropUserTables = async () => {
   await db.query("DROP TABLE IF EXISTS shifts");
   await db.query("DROP TABLE IF EXISTS paylists");
   await db.query("DROP TABLE IF EXISTS users");
+  await db.query("DROP TABLE IF EXISTS companies");
   await db.query("SET FOREIGN_KEY_CHECKS = 1");
 };
 
@@ -18,6 +21,7 @@ export const createUsersTable = async () => {
   await db.query(`
     CREATE TABLE IF NOT EXISTS users (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      company_id INT UNSIGNED NOT NULL,
       name VARCHAR(255) NOT NULL,
       email VARCHAR(249) COLLATE utf8mb4_unicode_ci NOT NULL,
       password VARCHAR(255) CHARACTER SET latin1 COLLATE latin1_general_cs NOT NULL,
@@ -29,7 +33,8 @@ export const createUsersTable = async () => {
       registered INT(10) UNSIGNED NOT NULL DEFAULT 0,
       last_login INT(10) UNSIGNED DEFAULT NULL,
       force_logout MEDIUMINT(7) UNSIGNED NOT NULL DEFAULT '0',
-      UNIQUE KEY email (email)
+      UNIQUE KEY email (email),
+      FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 };
@@ -113,6 +118,7 @@ export const findUserById = async (id: number) => {
 
 // Initialize all user-related tables: drop then create
 export const initUserModel = async () => {
+  
   await createUsersTable();
   await createUsersConfirmationsTable();
   await createUsersRememberedTable();
