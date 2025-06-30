@@ -3,14 +3,7 @@ import fs from "fs";
 import path from "path";
 
 /**
- * Generate a styled paylist PDF for an employee.
- * @param employeeName Name of the employee
- * @param employeeEmail Email of the employee
- * @param month Month string (e.g., "2024-06")
- * @param shifts Array of shift objects: { date, start_time, end_time, hourly_rate }
- * @param total Total salary for the month
- * @param companyName Name of the company
- * @returns The path to the generated PDF file
+ * Generate a styled paylist PDF for an employee, with a table for salary details.
  */
 export const generatePaylistPDF = async (
   employeeName: string,
@@ -24,7 +17,6 @@ export const generatePaylistPDF = async (
   const fileName = `paylist-${employeeName.replace(/\s+/g, "_")}-${month}.pdf`;
   const filePath = path.join(__dirname, "../../paylists", fileName);
 
-  // Ensure the output directory exists
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
 
   const stream = fs.createWriteStream(filePath);
@@ -40,7 +32,11 @@ export const generatePaylistPDF = async (
     hourlyRate = shift.hourly_rate;
   });
 
-  // Rectangle for company and employee data (above the main square)
+  // Calculate taxes and liquid (net) salary
+  const taxes = +(total * 0.288).toFixed(2);
+  const liquid = +(total - taxes).toFixed(2);
+
+  // Header rectangle
   const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   const infoRectHeight = 70;
   const infoRectY = doc.page.margins.top;
@@ -59,52 +55,56 @@ export const generatePaylistPDF = async (
     .text(`Employee: ${employeeName}`, infoRectX + 20, infoRectY + 36, { align: "left" })
     .text(`Email: ${employeeEmail}`, infoRectX + 20, infoRectY + 52, { align: "left" });
 
-  // Draw a bordered "div" for the salary table and total
+  // Table rectangle
   const pageHeight = doc.page.height - doc.page.margins.top - doc.page.margins.bottom;
   const rectHeight = pageHeight * 0.8;
   const rectY = infoRectY + infoRectHeight + 20;
   const rectX = doc.page.margins.left;
 
-  // Outer border for the whole section (including total)
   doc
     .rect(rectX, rectY, pageWidth, rectHeight)
     .stroke("#2E86C1");
 
-  // Header: "Salary" and "14 24" (space-between)
-  const headerY = rectY + 20;
-  doc.fontSize(18).fillColor("#2E86C1").text("Salary", rectX + 20, headerY, { align: "left" });
-  doc.fontSize(18).fillColor("#2E86C1").text("14 24", rectX + pageWidth - 60, headerY, { align: "left" });
+  // Table headers
+  const tableY = rectY + 30;
+  doc.fontSize(14).fillColor("#2E86C1")
+    .text("Description", rectX + 20, tableY)
+    .text("Hours", rectX + 200, tableY, { width: 60, align: "right" })
+    .text("Rate", rectX + 300, tableY, { width: 60, align: "right" })
+    .text("Subtotal", rectX + 400, tableY, { width: 80, align: "right" });
 
-  // Fields: Description, Unit, Value (space-between)
-  const fieldsY = headerY + 40;
+  // Table row: Worked Hours
+  const rowY = tableY + 25;
   doc.fontSize(12).fillColor("#000")
-    .text("Description", rectX + 20, fieldsY, { width: 120, align: "left" })
-    .text("Unit", rectX + pageWidth / 2 - 40, fieldsY, { width: 60, align: "left" })
-    .text("Value", rectX + pageWidth - 100, fieldsY, { width: 80, align: "left" });
+    .text("Worked Hours", rectX + 20, rowY)
+    .text(`${totalHours}`, rectX + 200, rowY, { width: 60, align: "right" })
+    .text(`$${hourlyRate}`, rectX + 300, rowY, { width: 60, align: "right" })
+    .text(`$${total.toFixed(2)}`, rectX + 400, rowY, { width: 80, align: "right" });
 
-  // Example row: "Worked Hours", totalHours, hourlyRate
-  const rowY = fieldsY + 30;
-  doc.fontSize(14).fillColor("#000")
-    .text("Worked Hours", rectX + 20, rowY, { width: 120, align: "left" })
-    .text(`${totalHours}`, rectX + pageWidth / 2 - 40, rowY, { width: 60, align: "left" })
-    .text(`$${hourlyRate}`, rectX + pageWidth - 100, rowY, { width: 80, align: "left" });
+  // Draw a full-width table at the bottom for totals (as a flex column: each value on its own row)
+  const tableBottomY = rectY + rectHeight - 70;
+  doc.fontSize(14);
 
-  // Draw a rectangle around the total at the bottom right
-  const totalBoxWidth = 200;
-  const totalBoxHeight = 40;
-  const totalBoxX = rectX + pageWidth - totalBoxWidth - 20;
-  const totalBoxY = rectY + rectHeight - totalBoxHeight - 20;
+  // Row 1: Total
+  doc.fillColor("#000")
+    .text("Total", rectX + 20, tableBottomY, { align: "left" })
+    .fillColor("#117A65")
+    .text(`$${total.toFixed(2)}`, rectX + pageWidth - 120, tableBottomY, { width: 100, align: "right" });
 
-  doc
-    .rect(totalBoxX, totalBoxY, totalBoxWidth, totalBoxHeight)
-    .stroke("#117A65");
+  // Row 2: Taxes
+  doc.fillColor("#000")
+    .text("Taxes (28.8%)", rectX + 20, tableBottomY + 22, { align: "left" })
+    .fillColor("#C0392B")
+    .text(`$${taxes.toFixed(2)}`, rectX + pageWidth - 120, tableBottomY + 22, { width: 100, align: "right" });
 
-  doc.fontSize(16).fillColor("#117A65")
-    .text(`Total: $${total.toFixed(2)}`, totalBoxX + 10, totalBoxY + 10, { width: totalBoxWidth - 20, align: "right" });
+  // Row 3: Liquid
+  doc.fillColor("#000")
+    .text("Liquid", rectX + 20, tableBottomY + 44, { align: "left" })
+    .fillColor("#117A65")
+    .text(`$${liquid.toFixed(2)}`, rectX + pageWidth - 120, tableBottomY + 44, { width: 100, align: "right" });
 
   doc.end();
 
-  // Wait for the file to finish writing
   await new Promise<void>((resolve, reject) => {
     stream.on("finish", () => resolve());
     stream.on("error", reject);
