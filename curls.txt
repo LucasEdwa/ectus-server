@@ -1,0 +1,89 @@
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"mutation { register(name: \"Jose Candido\", email: \"jose@ecstus.com\", password: \"josepassword\", role: \"finance\", company_id: 1) { message } }"}'
+
+
+  curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"mutation { register(name: \"Maria\", email: \"maria@ecstus.com\", password: \"mariapassword\", role: \"employee\", company_id: 1) { message } }"}'
+
+
+  curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"mutation { register(name: \"Jose Candido\", email: \"jose@ecstus.com\", password: \"josepassword\", role: \"finance\", company_id: 1) { message } }"}'
+
+# Add shifts for Maria (employee_id: 2) for 3 days, 8-12 and 13-17
+
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"mutation { addShift(employee_id: 2, date: \"2024-06-17\", start_time: \"08:00:00\", end_time: \"12:00:00\", hourly_rate: 25.0) { id } }"}'
+
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"mutation { addShift(employee_id: 2, date: \"2024-06-17\", start_time: \"13:00:00\", end_time: \"17:00:00\", hourly_rate: 25.0) { id } }"}'
+
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"mutation { addShift(employee_id: 2, date: \"2024-06-18\", start_time: \"08:00:00\", end_time: \"12:00:00\", hourly_rate: 25.0) { id } }"}'
+
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"mutation { addShift(employee_id: 2, date: \"2024-06-18\", start_time: \"13:00:00\", end_time: \"17:00:00\", hourly_rate: 25.0) { id } }"}'
+
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"mutation { addShift(employee_id: 2, date: \"2024-06-19\", start_time: \"08:00:00\", end_time: \"12:00:00\", hourly_rate: 25.0) { id } }"}'
+
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"mutation { addShift(employee_id: 2, date: \"2024-06-19\", start_time: \"13:00:00\", end_time: \"17:00:00\", hourly_rate: 25.0) { id } }"}'
+
+# Jose (finance) generates the paylist PDF for Maria (employee_id: 2) for June 2024
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Mywicm9sZSI6ImZpbmFuY2UiLCJpYXQiOjE3NTEzMTYwMzgsImV4cCI6MTc1MTkyMDgzOH0.rRzIwfJ65CJ_J_UgCdPyGL-CSjAla12Cv8hNeyqeyvI" \
+  -d '{"query":"mutation { addPaylist(employee_id: 2, month: \"2024-06-01\", pdf_url: \"\") { id employee_id month pdf_url } }"}'
+
+# Login as Jose Candido (finance) 
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"mutation { login(email: \"jose@ecstus.com\", password: \"josepassword\") { token } }"}'
+
+# Login as Maria (employee)
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"mutation { login(email: \"maria@ecstus.com\", password: \"mariapassword\") { token } }"}'
+
+# Login as Lucas (leader)
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"mutation { login(email: \"lucas@ecstus.com\", password: \"yourpassword\") { token } }"}'
+
+# Create an expense for company_id 1, user_id 3 (Maria), only as finance (Jose) with token
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Mywicm9zZSI6ImZpbmFuY2UiLCJpYXQiOjE3NTEzMTYwMzgsImV4cCI6MTc1MTkyMDgzOH0.rRzIwfJ65CJ_J_UgCdPyGL-CSjAla12Cv8hNeyqeyvI" \
+  -d '{"query":"mutation { createExpense(company_id: 1, user_id: 3, category_id: 1, description: \"Office Supplies\", amount: 150.50, expense_date: \"2024-06-20\", category: \"Supplies\") { id company_id user_id category_id description amount expense_date category created_at } }"}'
+
+# Add expense categories for company_id 1
+
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"mutation { createExpenseCategory(company_id: 1, name: \"Office Supplies\", description: \"Pens, paper, etc.\") { id name description } }"}'
+
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"mutation { createExpenseCategory(company_id: 1, name: \"Travel\", description: \"Business travel expenses\") { id name description } }"}'
+
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"mutation { createExpenseCategory(company_id: 1, name: \"Meals\", description: \"Meals and entertainment\") { id name description } }"}'
+
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"mutation { createExpenseCategory(company_id: 1, name: \"Software\", description: \"Software subscriptions and licenses\") { id name description } }"}'
+
+curl -X POST http://localhost:4000/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"mutation { createExpenseCategory(company_id: 1, name: \"Utilities\", description: \"Electricity, water, internet\") { id name description } }"}'
+

@@ -2,16 +2,24 @@ import PDFDocument from "pdfkit";
 import fs from "fs";
 import path from "path";
 
-/**
- * Generate a styled paylist PDF for an employee, with a table for salary details.
- */
+
 export const generatePaylistPDF = async (
   employeeName: string,
   employeeEmail: string,
   month: string,
   shifts: { date: string; start_time: string; end_time: string; hourly_rate: number }[],
   total: number,
-  companyName: string = "Ecstus Global Solutions"
+  company: {
+    name: string;
+    org_number: string;
+    address: string;
+    zip_code: string;
+    city: string;
+    country: string;
+    phone?: string;
+    email?: string;
+    vat_number?: string;
+  }
 ): Promise<string> => {
   const doc = new PDFDocument({ margin: 50 });
   const fileName = `paylist-${employeeName.replace(/\s+/g, "_")}-${month}.pdf`;
@@ -36,9 +44,9 @@ export const generatePaylistPDF = async (
   const taxes = +(total * 0.288).toFixed(2);
   const liquid = +(total - taxes).toFixed(2);
 
-  // Header rectangle
+  // Header rectangle with company info (except bank info)
   const pageWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const infoRectHeight = 70;
+  const infoRectHeight = 120;
   const infoRectY = doc.page.margins.top;
   const infoRectX = doc.page.margins.left;
 
@@ -46,18 +54,50 @@ export const generatePaylistPDF = async (
     .rect(infoRectX, infoRectY, pageWidth, infoRectHeight)
     .fillAndStroke("#F2F3F4", "#2E86C1");
 
+  // Define columns for the 3 "divs"
+  const colWidth = pageWidth / 3;
+  const leftX = infoRectX + 10;
+  const centerX = infoRectX + colWidth + 10;
+  const rightX = infoRectX + 2 * colWidth + 10;
+  let y = infoRectY + 16;
+
+  // Left: Company data
   doc
     .fillColor("#2E86C1")
-    .fontSize(16)
-    .text(companyName, infoRectX + 20, infoRectY + 12, { align: "left" })
-    .fillColor("#000")
     .fontSize(12)
-    .text(`Employee: ${employeeName}`, infoRectX + 20, infoRectY + 36, { align: "left" })
-    .text(`Email: ${employeeEmail}`, infoRectX + 20, infoRectY + 52, { align: "left" });
+    .text(company.name, leftX, y, { width: colWidth - 20, align: "left" })
+    .fontSize(10)
+    .fillColor("#000")
+    .text(`Org.nr: ${company.org_number}`, leftX, y + 20, { width: colWidth - 20, align: "left" })
+    .text(`Address: ${company.address}`, leftX, y + 34, { width: colWidth - 20, align: "left" })
+    .text(`Zip: ${company.zip_code}`, leftX, y + 48, { width: colWidth - 20, align: "left" })
+    .text(`City: ${company.city}`, leftX, y + 62, { width: colWidth - 20, align: "left" })
+    .text(`Phone: ${company.phone || ""}`, leftX, y + 75, { width: colWidth - 20, align: "left" })
+    .text(`Email: ${company.email || ""}`, leftX, y + 88, { width: colWidth - 20, align: "left" });
+
+  // Center: VAT only
+  doc
+    .fontSize(14)
+    .fillColor("#2E86C1")
+    .text("VAT Number", centerX, y, { width: colWidth - 20, align: "center" })
+    .fontSize(12)
+    .fillColor("#000")
+    .text(company.vat_number || "", centerX, y + 20, { width: colWidth - 20, align: "center" });
+
+  // Right: Employee data
+  doc
+    .fontSize(14)
+    .fillColor("#2E86C1")
+    .text("Employee", rightX, y, { width: colWidth - 20, align: "left" })
+    .fontSize(12)
+    .fillColor("#000")
+    .text(employeeName, rightX, y + 20, { width: colWidth - 20, align: "left" })
+    .text(`Email: ${employeeEmail}`, rightX, y + 34, { width: colWidth - 20, align: "left" })
+    .text(`Paylist Month: ${month}`, rightX, y + 48, { width: colWidth - 20, align: "left" });
 
   // Table rectangle
   const pageHeight = doc.page.height - doc.page.margins.top - doc.page.margins.bottom;
-  const rectHeight = pageHeight * 0.8;
+  const rectHeight = pageHeight * 0.7;
   const rectY = infoRectY + infoRectHeight + 20;
   const rectX = doc.page.margins.left;
 
