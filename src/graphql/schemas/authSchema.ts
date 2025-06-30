@@ -8,7 +8,13 @@ export const authTypeDefs = `
   }
 
   extend type Mutation {
-    register(name: String!, email: String!, password: String!, role: String!): RegisterResponse
+    register(
+      name: String!
+      email: String!
+      password: String!
+      role: String!
+      company_id: ID!
+    ): RegisterResponse
     login(email: String!, password: String!): AuthPayload
   }
 `;
