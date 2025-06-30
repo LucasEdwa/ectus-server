@@ -26,5 +26,16 @@ export const expenseTypeDefs = `
       expense_date: String!
       category: String
     ): Expense
+    updateExpense(
+      id: ID!
+      company_id: ID!
+      user_id: ID
+      category_id: ID
+      description: String!
+      amount: Float!
+      expense_date: String!
+      category: String
+    ): Expense
+    deleteExpense(id: ID!): Boolean 
   }
 `;

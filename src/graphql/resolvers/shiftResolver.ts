@@ -26,5 +26,24 @@ export const shiftResolvers = {
         hourly_rate
       };
     }
+  },
+  async updateShift(args: any) {
+    const { id, date, start_time, end_time, hourly_rate } = args;
+    await db.query(
+      "UPDATE shifts SET date = ?, start_time = ?, end_time = ?, hourly_rate = ? WHERE id = ?",
+      [date, start_time, end_time, hourly_rate, id]
+    );
+    return {
+      id,
+      date,
+      start_time,
+      end_time,
+      hourly_rate
+    };
+  }
+  ,
+  async deleteShift({ id }: { id: number }) {
+    await db.query("DELETE FROM shifts WHERE id = ?", [id]);
+    return { success: true, message: "Shift deleted successfully" };
   }
 };

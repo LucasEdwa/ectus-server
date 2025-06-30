@@ -55,5 +55,6 @@ export const paylistResolvers = {
         pdf_url: pdfPath
       };
     }
+    
   }
 };

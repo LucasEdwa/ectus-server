@@ -28,5 +28,16 @@ export const billTypeDefs = `
       vat: Float
       file_url: String
     ): Bill
+    updateBill(
+      id: ID!
+      bill_number: String!
+      bill_date: String!
+      due_date: String
+      supplier: String
+      amount: Float!
+      vat: Float
+      file_url: String
+    ): Bill
+    deleteBill(id: ID!): Boolean
   }
 `;
