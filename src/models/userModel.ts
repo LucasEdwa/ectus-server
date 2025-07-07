@@ -1,3 +1,4 @@
+import { CreateUserInput, User } from "../types/user";
 import { db } from "./db";
 
 // Drop all user-related tables in correct order
@@ -17,7 +18,7 @@ export const dropUserTables = async () => {
 };
 
 // Users main table
-export const createUsersTable = async () => {
+export const createUsersTable = async ():Promise<void> => {
   await db.query(`
     CREATE TABLE IF NOT EXISTS users (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -92,19 +93,19 @@ export const createUsersThrottlingTable = async () => {
 };
 
 // User CRUD helpers
-export const createUser = async (name: string, email: string, password: string, role: string) => {
+export const createUser = async (input : CreateUserInput) => {
   await db.query(
     "INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)",
-    [name, email, password, role]
+    [input.name, input.email, input.password, input.role]
   );
 };
 
-export const findUserByEmail = async (email: string) => {
+export const findUserByEmail = async (email: string):Promise<User> => {
   const [rows]: any = await db.query("SELECT * FROM users WHERE email = ?", [email]);
   return rows[0];
 };
 
-export const findUserById = async (id: number) => {
+export const findUserById = async (id: number):Promise<User> => {
   const [rows]: any = await db.query("SELECT * FROM users WHERE id = ?", [id]);
   return rows[0];
 };

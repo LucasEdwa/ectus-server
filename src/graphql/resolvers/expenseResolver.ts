@@ -1,8 +1,9 @@
 import { db } from "../../models/db";
+import { CreateExpenseInput, Expense, UpdateExpenseInput } from "../../types/expense";
 
 export const expenseResolvers = {
   Query: {
-    async expenses(_: any, { company_id }: { company_id?: number }) {
+    async expenses(_: any, { company_id }: { company_id?: number }): Promise<Expense[]> {
       let query = `
         SELECT e.*, c.name as category
         FROM expenses e
@@ -16,7 +17,7 @@ export const expenseResolvers = {
       const [rows]: any = await db.query(query, params);
       return rows;
     },
-    async expense(_: any, { id }: { id: number }) {
+    async expense(_: any, { id }: { id: number }): Promise<Expense | null> {
       const [rows]: any = await db.query(
         `SELECT e.*, c.name as category
          FROM expenses e
@@ -28,7 +29,7 @@ export const expenseResolvers = {
     }
   },
   Mutation: {
-    async createExpense(args: any) {
+    async createExpense(args: CreateExpenseInput): Promise<Expense> {
       const { company_id, user_id, description, amount, expense_date, category_id } = args;
       const [result]: any = await db.query(
         `INSERT INTO expenses (company_id, user_id, description, amount, expense_date, category_id)
@@ -45,7 +46,7 @@ export const expenseResolvers = {
       );
       return rows[0];
     },
-    async updateExpense(args: any) {
+    async updateExpense(args: UpdateExpenseInput): Promise<Expense> {
       const { id, description, amount, expense_date, category_id } = args;
       await db.query(
         `UPDATE expenses
