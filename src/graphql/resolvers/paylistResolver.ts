@@ -1,9 +1,10 @@
 import { db } from "../../models/db";
 import { generatePaylistPDF } from "../../utils/pdfUtils";
+import { Paylist } from "../../types/paylist";
 
 export const paylistResolvers = {
   Query: {
-    async paylistsByEmployee({ employee_id }: { employee_id: number }) {
+    async paylistsByEmployee(_: any, { employee_id }: { employee_id: number }): Promise<Paylist[]> {
       const [rows]: any = await db.query(
         "SELECT * FROM paylists WHERE employee_id = ? ORDER BY month DESC",
         [employee_id]
@@ -12,7 +13,7 @@ export const paylistResolvers = {
     }
   },
   Mutation: {
-    async addPaylist(args: any, context: any) {
+    async addPaylist(_: any, args: any): Promise<Paylist> {
       const { employee_id, month } = args;
       // Fetch employee info including company_id
       const [[employee]]: any = await db.query("SELECT name, email, company_id FROM users WHERE id = ?", [employee_id]);
@@ -50,11 +51,11 @@ export const paylistResolvers = {
       );
       return {
         id: result.insertId,
+        company_id: employee.company_id,
         employee_id,
         month,
         pdf_url: pdfPath
       };
     }
-    
   }
 };
