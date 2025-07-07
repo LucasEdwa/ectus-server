@@ -1,12 +1,10 @@
 import express from "express";
 import dotenv from "dotenv";
-import { initAllTables } from "./models/initAllTables";
+import { dropAllTables, initAllTables } from "./models/initAllTables";
 import { graphqlHTTP } from "express-graphql";
-import { buildSchema } from "graphql";
+import { makeExecutableSchema } from '@graphql-tools/schema';
 import { userTypeDefs } from "./graphql/schemas/userSchema";
 import { userResolvers } from "./graphql/resolvers/userResolver";
-import { authTypeDefs } from "./graphql/schemas/authSchema";
-import { authResolvers } from "./graphql/resolvers/authResolver";
 import { shiftTypeDefs } from "./graphql/schemas/shiftSchema";
 import { shiftResolvers } from "./graphql/resolvers/shiftResolver";
 import { paylistTypeDefs } from "./graphql/schemas/paylistSchema";
@@ -18,8 +16,7 @@ import { expenseResolvers } from "./graphql/resolvers/expenseResolver";
 import { expenseCategoryTypeDefs } from "./graphql/schemas/expenseCategorySchema";
 import { expenseCategoryResolvers } from "./graphql/resolvers/expenseCategoryResolver";
 import { removeCategoryColumnIfExists } from "./models/expenseModel";
-// import { billTypeDefs } from "./graphql/schemas/billSchema";
-// import { billResolvers } from "./graphql/resolvers/billResolver";
+
 dotenv.config();
 
 const app = express();
@@ -27,9 +24,8 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 4000;
 
-// Combine typeDefs as SDL string
+// Combine typeDefs as SDL string - userTypeDefs MUST come first to define base Query/Mutation
 const typeDefs = `
-${authTypeDefs}
 ${userTypeDefs}
 ${shiftTypeDefs}
 ${paylistTypeDefs}
@@ -39,32 +35,39 @@ ${expenseCategoryTypeDefs}
 
 `;
 
-// Merge resolvers for Query and Mutation
-const rootValue = {
-  ...(userResolvers.Query || {}),
-  ...(authResolvers.Mutation || {}),
-  ...(shiftResolvers.Query || {}),
-  ...(shiftResolvers.Mutation || {}),
-  ...(paylistResolvers.Query || {}),
-  ...(paylistResolvers.Mutation || {}),
-  ...(companyResolvers.Query || {}),
-  ...(companyResolvers.Mutation || {}),
-  ...(expenseResolvers.Query || {}),
-  ...(expenseResolvers.Mutation || {}),
-  ...(expenseCategoryResolvers.Query || {}),
-  ...(expenseCategoryResolvers.Mutation || {}),
-
+// Create proper resolver map instead of flattened rootValue
+const resolvers = {
+  Query: {
+    ...(userResolvers.Query || {}),
+    ...(shiftResolvers.Query || {}),
+    ...(paylistResolvers.Query || {}),
+    ...(companyResolvers.Query || {}),
+    ...(expenseResolvers.Query || {}),
+    ...(expenseCategoryResolvers.Query || {}),
+  },
+  Mutation: {
+    ...(userResolvers.Mutation || {}),
+    ...(shiftResolvers.Mutation || {}),
+    ...(paylistResolvers.Mutation || {}),
+    ...(companyResolvers.Mutation || {}),
+    ...(expenseResolvers.Mutation || {}),
+    ...(expenseCategoryResolvers.Mutation || {}),
+  }
 };
 
 (async () => {
-  await initAllTables();
+  await initAllTables(); // Then initialize tables
   await removeCategoryColumnIfExists();
+
+  const schema = makeExecutableSchema({
+    typeDefs,
+    resolvers,
+  });
 
   app.use(
     "/graphql",
     graphqlHTTP({
-      schema: buildSchema(typeDefs),
-      rootValue,
+      schema,
       graphiql: true,
     })
   );

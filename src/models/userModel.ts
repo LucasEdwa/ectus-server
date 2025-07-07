@@ -21,20 +21,13 @@ export const createUsersTable = async () => {
   await db.query(`
     CREATE TABLE IF NOT EXISTS users (
       id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-      company_id INT UNSIGNED NOT NULL,
       name VARCHAR(255) NOT NULL,
-      email VARCHAR(249) COLLATE utf8mb4_unicode_ci NOT NULL,
-      password VARCHAR(255) CHARACTER SET latin1 COLLATE latin1_general_cs NOT NULL,
+      email VARCHAR(255) NOT NULL UNIQUE,
+      password VARCHAR(255) NOT NULL,
       role ENUM('employee', 'leader', 'finance', 'hr') NOT NULL,
-      username VARCHAR(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-      status TINYINT(2) UNSIGNED NOT NULL DEFAULT '0',
-      verified TINYINT(1) UNSIGNED NOT NULL DEFAULT '0',
-      resettable TINYINT(1) UNSIGNED NOT NULL DEFAULT '1',
-      registered INT(10) UNSIGNED NOT NULL DEFAULT 0,
-      last_login INT(10) UNSIGNED DEFAULT NULL,
-      force_logout MEDIUMINT(7) UNSIGNED NOT NULL DEFAULT '0',
-      UNIQUE KEY email (email),
-      FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
+      company_id INT UNSIGNED,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 };
@@ -125,3 +118,4 @@ export const initUserModel = async () => {
   await createUsersResetsTable();
   await createUsersThrottlingTable();
 };
+  
