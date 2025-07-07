@@ -4,14 +4,15 @@ import { initPaylistModel } from "./paylistModel";
 import { initExpenseCategoryModel } from "./expenseCategoryModel";
 import { initExpenseModel } from "./expenseModel";
 import { initBillModel } from "./billModel";
-import {db} from "./db"; // Assuming you have a db module to handle database connections
+import { initShiftModel } from "./shiftModel";
+import {db} from "./db"; 
 
 export const initAllTables = async () => {
-  await initCompanyModel(); // Ensure companies table is created first
-  // Wait for companies table to be fully created before proceeding
+  await initCompanyModel(); 
+  await initShiftModel(); 
   await new Promise(resolve => setTimeout(resolve, 200));
   await initUserModel();
-  await initExpenseCategoryModel(); // Create expense_categories before expenses
+  await initExpenseCategoryModel(); 
   await initExpenseModel();
   await initPaylistModel();
   await initBillModel();

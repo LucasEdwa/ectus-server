@@ -1,9 +1,7 @@
 import { db } from "../../models/db";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import { User, CreateUserInput, LoginInput, AuthPayload } from "../../types/user";
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+import { generateToken } from "../../middleware/jwtAuth"; // <-- use new util
 
 export const userResolvers = {
   Query: {
@@ -66,12 +64,8 @@ export const userResolvers = {
         
         const user = userRows[0];
         
-        // Generate JWT token
-        const token = jwt.sign(
-          { userId: user.id, email: user.email },
-          JWT_SECRET,
-          { expiresIn: "24h" }
-        );
+        // Generate JWT token using new util
+        const token = generateToken(user);
         
         return { token, user };
       } catch (error: any) {
@@ -101,12 +95,8 @@ export const userResolvers = {
           throw new Error("Invalid email or password");
         }
         
-        // Generate JWT token
-        const token = jwt.sign(
-          { userId: user.id, email: user.email },
-          JWT_SECRET,
-          { expiresIn: "24h" }
-        );
+        // Generate JWT token using new util
+        const token = generateToken(user);
         
         // Remove password from response
         const { password: _, ...userWithoutPassword } = user;
