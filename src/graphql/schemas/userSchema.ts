@@ -17,6 +17,7 @@ export const userTypeDefs = `
     users: [User!]!
     roles: [String!]!
     me: User
+    userById(id: Int!): User
   }
 
   type Mutation {
