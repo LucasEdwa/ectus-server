@@ -16,6 +16,9 @@ import { expenseResolvers } from "./graphql/resolvers/expenseResolver";
 import { expenseCategoryTypeDefs } from "./graphql/schemas/expenseCategorySchema";
 import { expenseCategoryResolvers } from "./graphql/resolvers/expenseCategoryResolver";
 import { removeCategoryColumnIfExists } from "./models/expenseModel";
+import playground from 'graphql-playground-middleware-express';
+
+import { contextFunction } from "./graphql/context";
 
 dotenv.config();
 
@@ -56,6 +59,7 @@ const resolvers = {
 };
 
 (async () => {
+
   await initAllTables(); // Then initialize tables
   await removeCategoryColumnIfExists();
 
@@ -64,14 +68,20 @@ const resolvers = {
     resolvers,
   });
 
+
   app.use(
     "/graphql",
-    graphqlHTTP({
-      schema,
-      graphiql: true,
+    graphqlHTTP((req, res, params) => {
+     
+      return {
+        schema,
+        graphiql: true,
+        context: contextFunction({ req }),
+      
+      };
     })
   );
-
+app.get('/playground', playground({ endpoint: '/graphql' }));
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`GraphQL endpoint: http://localhost:${PORT}/graphql`);
