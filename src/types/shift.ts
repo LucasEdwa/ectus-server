@@ -8,4 +8,5 @@ export interface Shift {
     hourly_rate: number;
     total_hours?: number;
     created_at?: string;
+    user_id: number;
 }

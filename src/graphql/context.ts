@@ -26,16 +26,12 @@ export function contextFunction({ req }: { req: any }): GraphQLContext {
     authHeader = req.body.authorization;
   }
 
-  // Add this debug log to see the raw header value
-  console.debug("[contextFunction] Raw authHeader value:", authHeader);
-
   let user: ContextUser | undefined = undefined;
 
   if (typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
     const token = authHeader.replace("Bearer ", "");
     try {
       const decoded = jwt.verify(token, JWT_SECRET) as ContextUser;
-      // Normalize id field
       user = {
         ...decoded,
         id: decoded.id ?? decoded.userId,
@@ -45,14 +41,7 @@ export function contextFunction({ req }: { req: any }): GraphQLContext {
       console.error("[contextFunction] JWT verification error:", e);
     }
   } else {
-    if (authHeader) {
-      console.debug(
-        "[contextFunction] Authorization header present but not Bearer:",
-        authHeader
-      );
-    } else {
-      console.debug("[contextFunction] No Authorization header found.");
-    }
+    console.warn("[contextFunction] No valid Bearer token found in headers");
   }
 
   return { user };

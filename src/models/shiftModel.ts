@@ -16,13 +16,15 @@ export const createShiftsTable = async (): Promise<void> => {
         TIMESTAMPDIFF(MINUTE, start_time, end_time) / 60 -
         IF(break_duration IS NOT NULL, TIMESTAMPDIFF(MINUTE, SEC_TO_TIME(0), break_duration) / 60, 0)
       ) STORED,
+       user_id INT UNSIGNED NOT NULL,
+       
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       UNIQUE KEY unique_shift (employee_id, date, start_time),
-      FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE
+      FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
   
-
   await db.query(`
     ALTER TABLE shifts 
     MODIFY COLUMN total_hours FLOAT AS (
@@ -38,36 +40,22 @@ export const createShift = async (
   start_time: string,
   end_time: string,
   break_duration: string,
-  hourly_rate: number
+  hourly_rate: number,
+  user_id: number
 ): Promise<Shift> => {
-  // Debug input values
-  console.debug("createShift input:", {
-    employee_id,
-    date,
-    start_time,
-    end_time,
-    break_duration,
-    hourly_rate
-  });
 
-  // Fix: treat "00:00:00", empty string, or undefined as null for break_duration
   let breakDurationValue: string | null = break_duration;
   if (!break_duration || break_duration === "00:00:00") {
     breakDurationValue = null;
   }
 
-  console.debug("breakDurationValue to insert:", breakDurationValue);
-
   try {
     const [result]: any = await db.query(
-      `INSERT INTO shifts (employee_id, date, start_time, end_time, break_duration, hourly_rate)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [employee_id, date, start_time, end_time, breakDurationValue, hourly_rate]
+      `INSERT INTO shifts (employee_id, date, start_time, end_time, break_duration, hourly_rate, user_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [employee_id, date, start_time, end_time, breakDurationValue, hourly_rate, user_id] 
     );
-    console.debug("Insert result:", result);
-
     const [rows]: any = await db.query("SELECT * FROM shifts WHERE id = ?", [result.insertId]);
-    console.debug("Inserted row:", rows[0]);
     return rows[0];
   } catch (error) {
     console.error("Error in createShift:", error);
@@ -90,23 +78,23 @@ export const updateShift = async (
   start_time: string,
   end_time: string,
   hourly_rate: number,
-  break_duration: string
+  break_duration: string,
+  user_id: number
 ): Promise<Shift> => {
-  // Ensure break_duration is null if "00:00:00", empty, or undefined
+
   let breakDurationValue: string | null = break_duration;
   if (!break_duration || break_duration === "00:00:00") {
     breakDurationValue = null;
   }
 
   await db.query(
-    `UPDATE shifts SET date = ?, start_time = ?, end_time = ?, hourly_rate = ?, break_duration = ? WHERE id = ?`,
-    [date, start_time, end_time, hourly_rate, breakDurationValue, id]
+    `UPDATE shifts SET date = ?, start_time = ?, end_time = ?, hourly_rate = ?, break_duration = ? WHERE id = ?, user_id = ?`,
+    [date, start_time, end_time, hourly_rate, breakDurationValue, id, user_id]
   );
   const [rows]: any = await db.query("SELECT * FROM shifts WHERE id = ?", [id]);
   return rows[0];
 };
 
-// All normalization and DB logic is already handled here.
 export const initShiftModel = async (): Promise<void> => {
   await createShiftsTable();
 };

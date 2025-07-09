@@ -27,7 +27,7 @@ export const userTypeDefs = `
       password: String!
       role: String!
       company_id: Int
-    ): AuthPayload!
+    ):User!
     
     login(
       email: String!

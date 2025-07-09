@@ -11,7 +11,7 @@ export interface CreateUserInput {
   name: string;
   email: string;
   password: string;
-  role: string;
+  role: UserRole;
   company_id?: number;
 }
 
@@ -23,4 +23,10 @@ export interface LoginInput {
 export interface AuthPayload {
   token: string;
   user: User;
+}
+enum UserRole {
+  EMPLOYEE = "employee",
+  LEADER = "leader",
+  FINANCE = "finance",
+  HR = "hr",
 }
