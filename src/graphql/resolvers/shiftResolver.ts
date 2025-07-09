@@ -1,12 +1,8 @@
 import { getShiftsByEmployee, createShift, updateShift } from "../../models/shiftModel";
 import { db } from "../../models/db";
 import { Shift } from "../../types/shift";
+import {canInsertShift, canUpdateShift,canDeleteShift} from "../../middleware/roles";
 
-function verifyFinanceRole(user: any) {
-  if (!user || user.role !== "finance") {
-    throw new Error("Only finance users can add shifts.");
-  }
-}
 
 export const shiftResolvers = {
   Query: {
@@ -16,30 +12,30 @@ export const shiftResolvers = {
   },
   Mutation: {
     async addShift(
-      _: any,
+      parent: any,
       { employee_id, date, start_time, end_time, hourly_rate, break_duration }: any,
       context: any
     ): Promise<Shift> {
     
-      verifyFinanceRole(context.user);
-      return await createShift(employee_id, date, start_time, end_time, break_duration, hourly_rate);
+      canInsertShift(context.user);
+      return await createShift(employee_id, date, start_time, end_time, break_duration, hourly_rate, context.user.id);
     },
     async updateShift(
-      _: any,
+      parent: any,
       { id, date, start_time, end_time, hourly_rate, break_duration }: any,
       context: any
     ): Promise<Shift> {
       if (!context.user) {
         throw new Error("Not authorized.");
       }
-      // Optionally, add further checks for update authorization here
-      return await updateShift(id, date, start_time, end_time, hourly_rate, break_duration);
+      canUpdateShift(context.user);
+      return await updateShift(id, date, start_time, end_time, hourly_rate, break_duration, context.user.id);
     },
     async deleteShift(_: any, { id }: { id: number }, context: any): Promise<boolean> {
       if (!context.user) {
         throw new Error("Not authorized.");
       }
-      // Optionally, add further checks for delete authorization here
+      canDeleteShift(context.user);
       const [result]: any = await db.query("DELETE FROM shifts WHERE id = ?", [id]);
       return result.affectedRows > 0;
     }
