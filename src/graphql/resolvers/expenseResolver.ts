@@ -3,7 +3,7 @@ import { CreateExpenseInput, Expense, UpdateExpenseInput } from "../../types/exp
 
 export const expenseResolvers = {
   Query: {
-    async expenses(_: any, { company_id }: { company_id?: number }): Promise<Expense[]> {
+    async expenses(parent: any, { company_id }: { company_id?: number }): Promise<Expense[]> {
       let query = `
         SELECT e.*, c.name as category
         FROM expenses e
@@ -17,7 +17,7 @@ export const expenseResolvers = {
       const [rows]: any = await db.query(query, params);
       return rows;
     },
-    async expense(_: any, { id }: { id: number }): Promise<Expense | null> {
+    async expense(parent: any, { id }: { id: number }): Promise<Expense | null> {
       const [rows]: any = await db.query(
         `SELECT e.*, c.name as category
          FROM expenses e
@@ -64,7 +64,7 @@ export const expenseResolvers = {
       );
       return rows[0];
     },  
-    async deleteExpense(_: any, { id }: { id: number }) {
+    async deleteExpense(parent: any, { id }: { id: number }) {
       await db.query("DELETE FROM expenses WHERE id = ?", [id]);
       return { success: true, message: "Expense deleted successfully" };
     }

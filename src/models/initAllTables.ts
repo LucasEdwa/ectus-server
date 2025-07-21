@@ -5,6 +5,8 @@ import { initExpenseCategoryModel } from "./expenseCategoryModel";
 import { initExpenseModel } from "./expenseModel";
 import { initBillModel } from "./billModel";
 import { initShiftModel } from "./shiftModel";
+import { createClientsTable } from "./clientsModel";
+
 import {db} from "./db"; 
 
 export const initAllTables = async () => {
@@ -16,6 +18,7 @@ export const initAllTables = async () => {
   await initExpenseModel();
   await initPaylistModel();
   await initBillModel();
+  await createClientsTable();
 };
 
 // drop all tables
