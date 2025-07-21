@@ -28,7 +28,7 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 app.use(cors({
-  origin: 'http://localhost:8082', // or '*' for all origins (not recommended for production)
+  origin: "*",
   credentials: true
 }));
 const PORT = process.env.PORT || 4000;

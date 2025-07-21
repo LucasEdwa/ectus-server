@@ -28,6 +28,7 @@ export function contextFunction({ req }: { req: any }): GraphQLContext {
 
   let user: ContextUser | undefined = undefined;
 
+
   if (typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
     const token = authHeader.replace("Bearer ", "");
     try {
