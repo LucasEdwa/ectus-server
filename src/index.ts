@@ -1,5 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
+import cors from "cors";
 import { dropAllTables, initAllTables } from "./models/initAllTables";
 import { graphqlHTTP } from "express-graphql";
 import { makeExecutableSchema } from '@graphql-tools/schema';
@@ -26,7 +27,10 @@ dotenv.config();
 
 const app = express();
 app.use(express.json());
-
+app.use(cors({
+  origin: 'http://localhost:8082', // or '*' for all origins (not recommended for production)
+  credentials: true
+}));
 const PORT = process.env.PORT || 4000;
 
 // Combine typeDefs as SDL string - userTypeDefs MUST come first to define base Query/Mutation
