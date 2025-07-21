@@ -1,6 +1,7 @@
 export interface Shift {
     id: number;
     employee_id: number;
+    client_id?: number;
     date: string;
     start_time: string;
     end_time: string;
@@ -9,4 +10,23 @@ export interface Shift {
     total_hours?: number;
     created_at?: string;
     user_id: number;
+    client_name?: string;
+    contact_name?: string;
+    contact_phone?: string;
+    contact_email?: string;
+    address?: string;
+    zip_code?: string;
+    city?: string;
+    country?: string;
+    service_type?: string;
+    home_size?: string;
+    frequency?: string;
+    number_of_rooms?: string;
+    number_of_bathrooms?: string;
+    access_instructions?: string;
+    priority_areas?: string;
+    special_instructions?: string;
+    allergies?: string;
+    pets?: string;
+    notes?: string;
 }

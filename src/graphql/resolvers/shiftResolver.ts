@@ -4,6 +4,7 @@ import { Shift } from "../../types/shift";
 import {canInsertShift, canUpdateShift,canDeleteShift} from "../../middleware/roles";
 
 
+
 export const shiftResolvers = {
   Query: {
     async shiftsByEmployee(_: any, { employee_id }: { employee_id: number }, context: any): Promise<Shift[]> {
@@ -13,12 +14,11 @@ export const shiftResolvers = {
   Mutation: {
     async addShift(
       parent: any,
-      { employee_id, date, start_time, end_time, hourly_rate, break_duration }: any,
+      { employee_id, client_id, date, start_time, end_time, hourly_rate, break_duration }: any,
       context: any
     ): Promise<Shift> {
-    
       canInsertShift(context.user);
-      return await createShift(employee_id, date, start_time, end_time, break_duration, hourly_rate, context.user.id);
+      return await createShift(employee_id, client_id, date, start_time, end_time, break_duration, hourly_rate, context.user.id);
     },
     async updateShift(
       parent: any,

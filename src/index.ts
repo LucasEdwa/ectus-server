@@ -16,6 +16,8 @@ import { expenseResolvers } from "./graphql/resolvers/expenseResolver";
 import { expenseCategoryTypeDefs } from "./graphql/schemas/expenseCategorySchema";
 import { expenseCategoryResolvers } from "./graphql/resolvers/expenseCategoryResolver";
 import { removeCategoryColumnIfExists } from "./models/expenseModel";
+import{clientResolvers} from "./graphql/resolvers/clientResolver";
+import { clientTypeDefs } from "./graphql/schemas/clientSchema";
 import playground from 'graphql-playground-middleware-express';
 
 import { contextFunction } from "./graphql/context";
@@ -35,6 +37,7 @@ ${paylistTypeDefs}
 ${companyTypeDefs}
 ${expenseTypeDefs}
 ${expenseCategoryTypeDefs}
+${clientTypeDefs}
 
 `;
 
@@ -47,6 +50,7 @@ const resolvers = {
     ...(companyResolvers.Query || {}),
     ...(expenseResolvers.Query || {}),
     ...(expenseCategoryResolvers.Query || {}),
+    ...(clientResolvers.Query || {}),
   },
   Mutation: {
     ...(userResolvers.Mutation || {}),
@@ -55,6 +59,7 @@ const resolvers = {
     ...(companyResolvers.Mutation || {}),
     ...(expenseResolvers.Mutation || {}),
     ...(expenseCategoryResolvers.Mutation || {}),
+    ...(clientResolvers.Mutation || {}),
   }
 };
 
