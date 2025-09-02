@@ -88,15 +88,6 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     // Verify token
     const decoded = verifyToken(token);
 
-    // Optionally: fetch fresh user data from DB
-    // const [userRows]: any = await db.query("SELECT * FROM users WHERE id = ?", [decoded.id]);
-    // const user = userRows[0];
-    // if (!user) {
-    //   res.status(401).json({ success: false, message: "Invalid token" });
-    //   return;
-    // }
-
-    // Attach decoded user info to request
     req.user = {
       ...decoded,
       id: decoded.id ?? decoded.userId,

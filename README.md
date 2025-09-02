@@ -24,32 +24,37 @@ A comprehensive employee management system built with Node.js, TypeScript, Graph
 ## Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone <repository-url>
    cd ectus-server
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Set up environment variables**
    Create a `.env` file in the root directory:
+
    ```env
    DB_HOST=127.0.0.1
    DB_USER=root
-   DB_PASSWORD=your_password
+   DB_PASSWORD=your_database_password_here
    DB_NAME=ecstus
    DB_PORT=3306
-   JWT_SECRET=your_super_secret_key
+   JWT_SECRET=your_jwt_secret_key_here
    ```
 
 4. **Set up MySQL database**
+
    - Create a MySQL database named `ecstus`
    - The application will automatically create all required tables on startup
 
 5. **Start the server**
+
    ```bash
    npm run dev
    ```
@@ -60,6 +65,7 @@ A comprehensive employee management system built with Node.js, TypeScript, Graph
 ## Database Schema
 
 ### Core Tables
+
 - **companies**: Company information (name, org_number, address, VAT, etc.)
 - **users**: Employee data with role-based access
 - **shifts**: Work shift records with hours and rates
@@ -73,6 +79,7 @@ A comprehensive employee management system built with Node.js, TypeScript, Graph
 ### Authentication
 
 **Register a new user:**
+
 ```graphql
 mutation {
   register(
@@ -88,6 +95,7 @@ mutation {
 ```
 
 **Login:**
+
 ```graphql
 mutation {
   login(email: "john@company.com", password: "password123") {
@@ -99,6 +107,7 @@ mutation {
 ### Company Management
 
 **Create a company:**
+
 ```graphql
 mutation {
   createCompany(
@@ -121,6 +130,7 @@ mutation {
 ### Shift Management
 
 **Add a work shift:**
+
 ```graphql
 mutation {
   addShift(
@@ -138,13 +148,10 @@ mutation {
 ### Payroll Generation
 
 **Generate paylist (requires finance role):**
+
 ```graphql
 mutation {
-  addPaylist(
-    employee_id: 2
-    month: "2024-06-01"
-    pdf_url: ""
-  ) {
+  addPaylist(employee_id: 2, month: "2024-06-01", pdf_url: "") {
     id
     employee_id
     month
@@ -156,6 +163,7 @@ mutation {
 ### Expense Management
 
 **Create expense category:**
+
 ```graphql
 mutation {
   createExpenseCategory(
@@ -170,6 +178,7 @@ mutation {
 ```
 
 **Create an expense:**
+
 ```graphql
 mutation {
   createExpense(
@@ -188,6 +197,7 @@ mutation {
 ```
 
 **Create a bill:**
+
 ```graphql
 mutation {
   createBill(
@@ -217,6 +227,7 @@ mutation {
 ## PDF Payslips
 
 The system automatically generates professional PDF payslips including:
+
 - Complete company information (except banking details)
 - Employee details
 - Work hours breakdown
@@ -239,26 +250,28 @@ src/
 ## Development
 
 **Run in development mode:**
+
 ```bash
 npm run dev
 ```
 
 **Available Scripts:**
+
 - `npm run dev`: Start development server with auto-reload
 - `npm run build`: Build TypeScript to JavaScript
 - `npm start`: Start production server
 
 ## Environment Variables
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `DB_HOST` | MySQL host | `127.0.0.1` |
-| `DB_USER` | MySQL username | `root` |
-| `DB_PASSWORD` | MySQL password | `password` |
-| `DB_NAME` | Database name | `ecstus` |
-| `DB_PORT` | MySQL port | `3306` |
-| `JWT_SECRET` | JWT signing secret | `your_secret_key` |
-| `PORT` | Server port | `4000` |
+| Variable      | Description        | Example           |
+| ------------- | ------------------ | ----------------- |
+| `DB_HOST`     | MySQL host         | `127.0.0.1`       |
+| `DB_USER`     | MySQL username     | `root`            |
+| `DB_PASSWORD` | MySQL password     | `password`        |
+| `DB_NAME`     | Database name      | `ecstus`          |
+| `DB_PORT`     | MySQL port         | `3306`            |
+| `JWT_SECRET`  | JWT signing secret | `your_secret_key` |
+| `PORT`        | Server port        | `4000`            |
 
 ## Contributing
 
