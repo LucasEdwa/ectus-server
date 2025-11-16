@@ -31,7 +31,7 @@ app.use(cors({
   origin: "*",
   credentials: true
 }));
-const PORT = process.env.PORT || 4000;
+const PORT = Number(process.env.PORT) || 4000;
 
 // Combine typeDefs as SDL string - userTypeDefs MUST come first to define base Query/Mutation
 const typeDefs = `
@@ -91,8 +91,9 @@ const resolvers = {
     })
   );
 app.get('/playground', playground({ endpoint: '/graphql' }));
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`GraphQL endpoint: http://localhost:${PORT}/graphql`);
+    console.log(`Network GraphQL endpoint: http://192.168.1.106:${PORT}/graphql`);
   });
 })();

@@ -38,24 +38,33 @@ export const createShiftsTable = async (): Promise<void> => {
 export const createShift = async (
   employee_id: number,
   client_id: number | null,
-  date: string,
+  date: string | number,
   start_time: string,
   end_time: string,
   break_duration: string,
   hourly_rate: number,
   user_id: number
 ): Promise<Shift> => {
-
   let breakDurationValue: string | null = break_duration;
   if (!break_duration || break_duration === "00:00:00") {
     breakDurationValue = null;
+  }
+
+  // Ensure date is in 'YYYY-MM-DD' format
+  let dateString: string;
+  if (typeof date === 'number' || (/^\d+$/.test(date))) {
+    // If date is a timestamp, convert to ISO string
+    dateString = new Date(Number(date)).toISOString().slice(0, 10);
+  } else {
+    // If already a string, use as is
+    dateString = date;
   }
 
   try {
     const [result]: any = await db.query(
       `INSERT INTO shifts (employee_id, client_id, date, start_time, end_time, break_duration, hourly_rate, user_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [employee_id, client_id, date, start_time, end_time, breakDurationValue, hourly_rate, user_id]
+      [employee_id, client_id, dateString, start_time, end_time, breakDurationValue, hourly_rate, user_id]
     );
     const [rows]: any = await db.query("SELECT * FROM shifts WHERE id = ?", [result.insertId]);
     return rows[0];
@@ -68,7 +77,11 @@ export const createShift = async (
 
 export const getShiftsByEmployee = async (employee_id: number): Promise<Shift[]> => {
   const [rows]: any = await db.query(
-    `SELECT s.*, c.id as client_id, c.name as client_name, c.contact_name, c.contact_phone, c.contact_email, c.address, c.zip_code, c.city, c.country, c.service_type, c.home_size, c.frequency, c.number_of_rooms, c.number_of_bathrooms, c.access_instructions, c.priority_areas, c.special_instructions, c.allergies, c.pets, c.notes
+    `SELECT s.*, c.id as client_id, c.name as client_name, c.contact_name, c.contact_phone,
+     c.contact_email, c.address, c.zip_code, c.city, 
+     c.country, c.service_type, c.home_size, c.frequency, 
+     c.number_of_rooms, c.number_of_bathrooms, c.access_instructions, c.priority_areas,
+     c.special_instructions, c.allergies, c.pets, c.notes
      FROM shifts s
      LEFT JOIN clients c ON s.client_id = c.id
      WHERE s.employee_id = ?

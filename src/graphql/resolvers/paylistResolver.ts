@@ -3,6 +3,9 @@ import { generatePaylistPDF } from "../../utils/pdfUtils";
 import { Paylist } from "../../types/paylist";
 import { canCreatePaylist } from "../../middleware/roles";
 async function preparePaylistData(employee_id: number, month: string) {
+  // Ensure month is in YYYY-MM-DD format for DATE column
+  const monthDate = month.length === 7 ? `${month}-01` : month;
+  
   // Fetch employee info including company_id
   const [[employee]]: any = await db.query(
     "SELECT name, email, company_id FROM users WHERE id = ?",
@@ -16,10 +19,11 @@ async function preparePaylistData(employee_id: number, month: string) {
     [employee.company_id]
   );
 
-  // Fetch shifts for the month
+  // Fetch shifts for the month (use original month format for comparison)
+  const monthForQuery = month.slice(0, 7);
   const [shiftRows]: any = await db.query(
     "SELECT date, start_time, end_time, hourly_rate FROM shifts WHERE employee_id = ? AND DATE_FORMAT(date, '%Y-%m') = ?",
-    [employee_id, month.slice(0, 7)]
+    [employee_id, monthForQuery]
   );
 
   // Calculate total salary
@@ -40,11 +44,27 @@ async function preparePaylistData(employee_id: number, month: string) {
     company
   );
 
-  return { employee, company, shiftRows, total, pdfPath };
+  return { employee, company, shiftRows, total, pdfPath, monthDate };
 }
 
 
 export const paylistResolvers = {
+  Paylist: {
+    async employee_name(parent: any) {
+      const [[employee]]: any = await db.query(
+        "SELECT name FROM users WHERE id = ?",
+        [parent.employee_id]
+      );
+      return employee?.name || null;
+    },
+    async employee_email(parent: any) {
+      const [[employee]]: any = await db.query(
+        "SELECT email FROM users WHERE id = ?",
+        [parent.employee_id]
+      );
+      return employee?.email || null;
+    },
+  },
   Query: {
     async paylistsByEmployee(_: any, { employee_id }: { employee_id: number }, context: any): Promise<Paylist[]> {
       if (!context.user) throw new Error("Not authorized.");
@@ -68,18 +88,20 @@ export const paylistResolvers = {
     async addPaylist(_: any, args: any, context: any): Promise<Paylist> {
       canCreatePaylist(context.user);
       const { employee_id, month } = args;
-      const { employee, pdfPath } = await preparePaylistData(employee_id, month);
+      const { employee, pdfPath, monthDate } = await preparePaylistData(employee_id, month);
+
+      console.log('Inserting paylist with month:', monthDate);
 
       const [result]: any = await db.query(
         "INSERT INTO paylists (company_id, employee_id, month, pdf_url) VALUES (?, ?, ?, ?)",
-        [employee.company_id, employee_id, month, pdfPath]
+        [employee.company_id, employee_id, monthDate, pdfPath]
       );
 
       return {
         id: result.insertId,
         company_id: employee.company_id,
         employee_id,
-        month,
+        month: monthDate,
         pdf_url: pdfPath,
       };
     },
@@ -94,16 +116,16 @@ export const paylistResolvers = {
       );
       if (!paylist) throw new Error("Paylist not found");
 
-      const { employee, pdfPath } = await preparePaylistData(paylist.employee_id, month);
+      const { employee, pdfPath, monthDate } = await preparePaylistData(paylist.employee_id, month);
 
       await db.query(
         "UPDATE paylists SET month = ?, pdf_url = ? WHERE id = ?",
-        [month, pdfPath, id]
+        [monthDate, pdfPath, id]
       );
 
       return {
         ...paylist,
-        month,
+        month: monthDate,
         pdf_url: pdfPath,
       };
     }

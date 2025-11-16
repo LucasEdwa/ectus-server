@@ -17,6 +17,44 @@ export const userResolvers = {
       );
       return rows;
     },
+    async usersByCompany(parent: any, args: { company_id: number }, context: any): Promise<User[]> {
+      console.log('=== usersByCompany Debug (After Fix) ===');
+      console.log('context.user:', context.user);
+      console.log('args.company_id:', args.company_id, typeof args.company_id);
+      console.log('context.user.company_id:', context.user?.company_id, typeof context.user?.company_id);
+      console.log('Match?', context.user?.company_id === args.company_id);
+      
+      if (!context.user) {
+        throw new Error("Not authenticated");
+      }
+      // Verify user belongs to the company they're querying
+      if (context.user.company_id !== args.company_id) {
+        console.log('❌ Authorization failed - company_id mismatch');
+        console.log('Expected:', args.company_id, 'Got:', context.user.company_id);
+        
+        // TEMPORARY: If company_id is undefined, fetch it from database
+        if (context.user.company_id === undefined) {
+          console.log('⚠️  TEMPORARY FIX: Fetching company_id from database');
+          const [userRows]: any = await db.query(
+            "SELECT company_id FROM users WHERE id = ?",
+            [context.user.id]
+          );
+          if (userRows.length > 0 && userRows[0].company_id === args.company_id) {
+            console.log('✅ TEMPORARY: User belongs to company', args.company_id);
+          } else {
+            throw new Error("Not authorized to view users from this company");
+          }
+        } else {
+          throw new Error("Not authorized to view users from this company");
+        }
+      }
+      const [rows]: any = await db.query(
+        "SELECT id, name, email, role, company_id, created_at FROM users WHERE company_id = ?",
+        [args.company_id]
+      );
+      console.log('✅ Returning', rows.length, 'users');
+      return rows;
+    },
     async roles(): Promise<string[]> {
       return ["employee", "leader", "finance", "hr"];
     },

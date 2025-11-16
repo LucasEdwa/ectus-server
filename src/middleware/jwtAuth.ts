@@ -21,6 +21,7 @@ export const generateToken = (user: any): string => {
     id: user.id,
     email: user.email,
     role: user.role,
+    company_id: user.company_id,
     iat: Math.floor(Date.now() / 1000)
   };
 

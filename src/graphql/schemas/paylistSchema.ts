@@ -5,6 +5,8 @@ export const paylistTypeDefs = `
     company_id: Int!
     month: String!
     pdf_url: String!
+    employee_name: String
+    employee_email: String
   }
  
   extend type Query {

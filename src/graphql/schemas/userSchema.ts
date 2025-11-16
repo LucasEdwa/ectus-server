@@ -15,6 +15,7 @@ export const userTypeDefs = `
 
   type Query {
     users: [User!]!
+    usersByCompany(company_id: Int!): [User!]!
     roles: [String!]!
     me: User
     userById(id: Int!): User
