@@ -41,8 +41,6 @@ export function contextFunction({ req }: { req: any }): GraphQLContext {
     } catch (e) {
       console.error("[contextFunction] JWT verification error:", e);
     }
-  } else {
-    console.warn("[contextFunction] No valid Bearer token found in headers");
   }
 
   return { user };

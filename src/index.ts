@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import path from "path";
 import { dropAllTables, initAllTables } from "./models/initAllTables";
 import { graphqlHTTP } from "express-graphql";
 import { makeExecutableSchema } from '@graphql-tools/schema';
@@ -19,9 +20,12 @@ import { expenseCategoryResolvers } from "./graphql/resolvers/expenseCategoryRes
 import { removeCategoryColumnIfExists } from "./models/expenseModel";
 import{clientResolvers} from "./graphql/resolvers/clientResolver";
 import { clientTypeDefs } from "./graphql/schemas/clientSchema";
+import { documentResolvers } from "./graphql/resolvers/documentResolver";
+import { documentTypeDefs } from "./graphql/schemas/documentSchema";
 import playground from 'graphql-playground-middleware-express';
 
 import { contextFunction } from "./graphql/context";
+import { fixPaylistPaths } from "./migrations/fixPaylistPaths";
 
 dotenv.config();
 
@@ -31,6 +35,17 @@ app.use(cors({
   origin: "*",
   credentials: true
 }));
+
+// Serve PDF files from the paylists directory
+app.use('/paylists', express.static(path.join(__dirname, '../paylists')));
+
+// Serve documents from the documents directory
+app.use('/documents', express.static(path.join(__dirname, '../documents')));
+
+// Upload route
+import uploadRoutes from "./routes/uploadRoutes";
+app.use('/api', uploadRoutes);
+
 const PORT = Number(process.env.PORT) || 4000;
 
 // Combine typeDefs as SDL string - userTypeDefs MUST come first to define base Query/Mutation
@@ -42,6 +57,7 @@ ${companyTypeDefs}
 ${expenseTypeDefs}
 ${expenseCategoryTypeDefs}
 ${clientTypeDefs}
+${documentTypeDefs}
 
 `;
 
@@ -55,6 +71,7 @@ const resolvers = {
     ...(expenseResolvers.Query || {}),
     ...(expenseCategoryResolvers.Query || {}),
     ...(clientResolvers.Query || {}),
+    ...(documentResolvers.Query || {}),
   },
   Mutation: {
     ...(userResolvers.Mutation || {}),
@@ -64,13 +81,16 @@ const resolvers = {
     ...(expenseResolvers.Mutation || {}),
     ...(expenseCategoryResolvers.Mutation || {}),
     ...(clientResolvers.Mutation || {}),
-  }
+    ...(documentResolvers.Mutation || {}),
+  },
+  Document: documentResolvers.Document,
 };
 
 (async () => {
 
   await initAllTables(); // Then initialize tables
   await removeCategoryColumnIfExists();
+  await fixPaylistPaths(); // Fix existing paylist paths
 
   const schema = makeExecutableSchema({
     typeDefs,

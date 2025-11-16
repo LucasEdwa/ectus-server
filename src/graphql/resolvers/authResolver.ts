@@ -47,7 +47,19 @@ export const authResolvers = {
       }
 
       const token = jwt.sign({ id: user.id, role: user.role }, jwtSecret, { expiresIn: "7d" });
-      return { token };
+      
+      // Return both token and user as required by AuthPayload schema
+      return { 
+        token,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          company_id: user.company_id,
+          created_at: user.created_at || new Date().toISOString()
+        }
+      };
     }
   }
 };

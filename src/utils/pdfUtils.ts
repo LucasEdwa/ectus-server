@@ -150,5 +150,6 @@ export const generatePaylistPDF = async (
     stream.on("error", reject);
   });
 
-  return filePath;
+  // Return URL path instead of file system path
+  return `/paylists/${fileName}`;
 };

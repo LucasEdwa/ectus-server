@@ -6,6 +6,7 @@ import { initExpenseModel } from "./expenseModel";
 import { initBillModel } from "./billModel";
 import { initShiftModel } from "./shiftModel";
 import { createClientsTable } from "./clientsModel";
+import { createDocumentsTable } from "./documentModel";
 
 import {db} from "./db"; 
 
@@ -19,6 +20,7 @@ export const initAllTables = async () => {
   await initPaylistModel();
   await initBillModel();
   await createClientsTable();
+  await createDocumentsTable();
 };
 
 // drop all tables
@@ -27,6 +29,7 @@ export const dropAllTables = async () => {
   await db.query("SET FOREIGN_KEY_CHECKS = 0");
   
   // Drop tables
+  await db.query("DROP TABLE IF EXISTS documents");
   await db.query("DROP TABLE IF EXISTS bills");
   await db.query("DROP TABLE IF EXISTS expenses");
   await db.query("DROP TABLE IF EXISTS expense_categories");
