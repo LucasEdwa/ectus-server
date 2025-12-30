@@ -14,6 +14,7 @@ declare global {
 // JWT Configuration
 const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "24h";
+const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || "7d";
 
 // Generate JWT token
 export const generateToken = (user: any): string => {
@@ -27,6 +28,24 @@ export const generateToken = (user: any): string => {
 
   const options: SignOptions = {
     expiresIn: JWT_EXPIRES_IN as SignOptions["expiresIn"],
+    issuer: "ectus-server",
+    audience: "ectus-users"
+  };
+
+  return jwt.sign(payload, JWT_SECRET, options);
+};
+
+// Generate refresh token
+export const generateRefreshToken = (user: any): string => {
+  const payload = {
+    id: user.id,
+    email: user.email,
+    type: 'refresh',
+    iat: Math.floor(Date.now() / 1000)
+  };
+
+  const options: SignOptions = {
+    expiresIn: REFRESH_TOKEN_EXPIRES_IN as SignOptions["expiresIn"],
     issuer: "ectus-server",
     audience: "ectus-users"
   };
@@ -48,6 +67,30 @@ export const verifyToken = (token: string): any => {
       throw new Error("Invalid token");
     }
     throw new Error("Token verification failed");
+  }
+};
+
+// Verify refresh token
+export const verifyRefreshToken = (token: string): any => {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET, {
+      issuer: "ectus-server",
+      audience: "ectus-users"
+    });
+    
+    // Check if it's actually a refresh token
+    if (typeof decoded === 'object' && decoded.type !== 'refresh') {
+      throw new Error("Invalid refresh token");
+    }
+    
+    return decoded;
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      throw new Error("Refresh token has expired");
+    } else if (error instanceof jwt.JsonWebTokenError) {
+      throw new Error("Invalid refresh token");
+    }
+    throw new Error("Refresh token verification failed");
   }
 };
 

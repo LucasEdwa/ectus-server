@@ -10,6 +10,7 @@ export const userTypeDefs = `
 
   type AuthPayload {
     token: String!
+    refreshToken: String
     user: User!
   }
 
@@ -34,6 +35,10 @@ export const userTypeDefs = `
     login(
       email: String!
       password: String!
+    ): AuthPayload!
+    
+    refreshToken(
+      refreshToken: String!
     ): AuthPayload!
   }
 `;

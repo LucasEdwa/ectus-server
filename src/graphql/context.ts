@@ -26,8 +26,9 @@ export function contextFunction({ req }: { req: any }): GraphQLContext {
     authHeader = req.body.authorization;
   }
 
-  let user: ContextUser | undefined = undefined;
+  console.log("[CONTEXT] Auth header:", authHeader ? authHeader.substring(0, 20) + "..." : "none");
 
+  let user: ContextUser | undefined = undefined;
 
   if (typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
     const token = authHeader.replace("Bearer ", "");
@@ -38,8 +39,20 @@ export function contextFunction({ req }: { req: any }): GraphQLContext {
         id: decoded.id ?? decoded.userId,
         role: decoded.role,
       };
-    } catch (e) {
-      console.error("[contextFunction] JWT verification error:", e);
+      console.log("[CONTEXT] User authenticated:", { id: user.id, role: user.role });
+    } catch (e: any) {
+      // Handle different JWT errors more gracefully - only log once per unique error
+      if (e.name === 'TokenExpiredError') {
+        // Only log expired tokens occasionally to prevent spam
+        if (Math.random() < 0.01) { // Log only 1% of expired token attempts
+          console.warn("[contextFunction] JWT tokens are expiring - users may need to re-authenticate");
+        }
+      } else if (e.name === 'JsonWebTokenError') {
+        console.warn("[contextFunction] Invalid JWT token format provided");
+      } else {
+        console.error("[contextFunction] Unexpected JWT error:", e.message);
+      }
+      // user remains undefined, which is the correct behavior for invalid tokens
     }
   }
 

@@ -10,8 +10,8 @@ const updateLastLogin = async (userId: number) => {
 
 export const authResolvers = {
   Mutation: {
-    async register(args: any) {
-      console.log("Register args:", args); // Should now log the actual arguments
+    async signup(args: any) {
+      console.log("Signup args:", args); // Should now log the actual arguments
       const { name, email, password, role, company_id } = args;
       if (!name || !email || !password || !role || !company_id) {
         throw new Error("All fields are required");

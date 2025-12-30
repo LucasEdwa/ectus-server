@@ -6,7 +6,7 @@ import {
   LoginInput,
   AuthPayload,
 } from "../../types/user";
-import { generateToken } from "../../middleware/jwtAuth";
+import { generateToken, generateRefreshToken, verifyRefreshToken } from "../../middleware/jwtAuth";
 
 export const userResolvers = {
   Query: {
@@ -59,7 +59,9 @@ export const userResolvers = {
       return ["employee", "leader", "finance", "hr"];
     },
     async me(parent: any, arg: any, context: any): Promise<User | null> {
+      console.log("[ME_QUERY] Context user:", context.user);
       if (!context.user || !context.user.id) {
+        console.log("[ME_QUERY] Not authenticated - missing user or user.id");
         throw new Error("Not authenticated");
       }
       // Fetch full user from DB
@@ -67,7 +69,9 @@ export const userResolvers = {
         "SELECT id, name, email, role, company_id, created_at FROM users WHERE id = ?",
         [context.user.id]
       );
-      return rows.length > 0 ? rows[0] : null;
+      const user = rows.length > 0 ? rows[0] : null;
+      console.log("[ME_QUERY] Returning user:", user);
+      return user;
     },
     async userById(
       parent: any,
@@ -161,13 +165,50 @@ export const userResolvers = {
         if (!isValid) {
           throw new Error("Invalid email or password");
         }
-        // Generate JWT token using new util
+        // Generate JWT tokens
         const token = generateToken(user);
+        const refreshToken = generateRefreshToken(user);
+        
         // Remove password from response
         const { password: _, ...userWithoutPassword } = user;
-        return { token, user: userWithoutPassword };
+        return { 
+          token, 
+          refreshToken, 
+          user: userWithoutPassword 
+        };
       } catch (error: any) {
         throw new Error(`Login failed: ${error.message}`);
+      }
+    },
+
+    async refreshToken(parent: any, args: { refreshToken: string }): Promise<AuthPayload> {
+      try {
+        // Verify the refresh token
+        const decoded = verifyRefreshToken(args.refreshToken);
+        
+        // Find user to get latest data
+        const [userRows]: any = await db.query(
+          "SELECT id, name, email, role, company_id, created_at FROM users WHERE id = ?",
+          [decoded.id]
+        );
+        
+        if (userRows.length === 0) {
+          throw new Error("User not found");
+        }
+        
+        const user = userRows[0];
+        
+        // Generate new access token and refresh token
+        const newToken = generateToken(user);
+        const newRefreshToken = generateRefreshToken(user);
+        
+        return {
+          token: newToken,
+          refreshToken: newRefreshToken,
+          user
+        };
+      } catch (error: any) {
+        throw new Error(`Token refresh failed: ${error.message}`);
       }
     },
   },

@@ -22,6 +22,7 @@ export interface LoginInput {
 
 export interface AuthPayload {
   token: string;
+  refreshToken?: string;
   user: User;
 }
 enum UserRole {
