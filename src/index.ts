@@ -22,10 +22,15 @@ import{ clientResolvers}   from "./graphql/resolvers/clientResolver";
 import { clientTypeDefs } from "./graphql/schemas/clientSchema";
 import { documentResolvers } from "./graphql/resolvers/documentResolver";
 import { documentTypeDefs } from "./graphql/schemas/documentSchema";
+import { timeBalanceResolvers } from "./graphql/resolvers/timeBalanceResolver";
+import { timeBalanceSchema } from "./graphql/schemas/timeBalanceSchema";
+import { shiftTrackingResolvers } from "./graphql/resolvers/shiftTrackingResolver";
+import { shiftTrackingSchema } from "./graphql/schemas/shiftTrackingSchema";
 import playground from 'graphql-playground-middleware-express';
 
 import { contextFunction } from "./graphql/context";
 import { fixPaylistPaths } from "./migrations/fixPaylistPaths";
+import { checkDatabaseTimezone } from "./models/db";
 
 dotenv.config();
 
@@ -58,6 +63,8 @@ ${expenseTypeDefs}
 ${expenseCategoryTypeDefs}
 ${clientTypeDefs}
 ${documentTypeDefs}
+${timeBalanceSchema}
+${shiftTrackingSchema}
 
 `;
 
@@ -72,6 +79,8 @@ const resolvers = {
     ...(expenseCategoryResolvers.Query || {}),
     ...(clientResolvers.Query || {}),
     ...(documentResolvers.Query || {}),
+    ...(timeBalanceResolvers.Query || {}),
+    ...(shiftTrackingResolvers.Query || {}),
   },
   Mutation: {
     ...(userResolvers.Mutation || {}),
@@ -82,12 +91,16 @@ const resolvers = {
     ...(expenseCategoryResolvers.Mutation || {}),
     ...(clientResolvers.Mutation || {}),
     ...(documentResolvers.Mutation || {}),
+    ...(timeBalanceResolvers.Mutation || {}),
+    ...(shiftTrackingResolvers.Mutation || {}),
   },
   Document: documentResolvers.Document,
+  TimeBalance: timeBalanceResolvers.TimeBalance,
 };
 
 (async () => {
 
+  await checkDatabaseTimezone(); // Check database timezone settings
   await initAllTables(); // Then initialize tables
   await removeCategoryColumnIfExists();
   await fixPaylistPaths(); // Fix existing paylist paths
