@@ -128,10 +128,10 @@ export const getCurrentShiftByEmployee = async (employeeId: number): Promise<Shi
     
     if (!rows[0]) return null;
 
-    const shift = rows[0];
+    const shift = rows[0] as any; // Cast to any to access dynamic SQL columns
     
     // Convert to consistent timestamp format
-    const transformedShift = {
+    const transformedShift: any = {
       ...shift,
       start_time: shift.start_time_ms ? shift.start_time_ms.toString() : shift.start_time,
       end_time: shift.end_time_ms ? shift.end_time_ms.toString() : shift.end_time,
