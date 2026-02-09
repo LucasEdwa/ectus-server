@@ -14,7 +14,7 @@ export const db = mysql.createPool({
 // Check database timezone configuration on startup
 export const checkDatabaseTimezone = async () => {
   try {
-    const [rows] = await db.query('SELECT @@system_time_zone as system_tz, @@session.time_zone as session_tz, NOW() as current_time, UTC_TIMESTAMP() as utc_time');
+    const [rows] = await db.query('SELECT @@system_time_zone as system_tz, @@session.time_zone as session_tz, NOW() as `current_time`, UTC_TIMESTAMP() as `utc_time`');
     console.log('[DATABASE] Timezone configuration:', rows);
   } catch (error) {
     console.error('[DATABASE] Error checking timezone:', error);

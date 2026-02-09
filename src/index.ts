@@ -31,6 +31,8 @@ import playground from 'graphql-playground-middleware-express';
 import { contextFunction } from "./graphql/context";
 import { fixPaylistPaths } from "./migrations/fixPaylistPaths";
 import { checkDatabaseTimezone } from "./models/db";
+import { getConnectionInfo } from "./utils/networkUtils";
+import systemRoutes from "./routes/systemRoutes";
 
 dotenv.config();
 
@@ -50,6 +52,9 @@ app.use('/documents', express.static(path.join(__dirname, '../documents')));
 // Upload route
 import uploadRoutes from "./routes/uploadRoutes";
 app.use('/api', uploadRoutes);
+
+// System routes (connection info, health check)  
+app.use("/api/system", systemRoutes);
 
 const PORT = Number(process.env.PORT) || 4000;
 
@@ -125,8 +130,18 @@ const resolvers = {
   );
 app.get('/playground', playground({ endpoint: '/graphql' }));
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`GraphQL endpoint: http://localhost:${PORT}/graphql`);
-    console.log(`Network GraphQL endpoint: http://192.168.68.103:${PORT}/graphql`);
+    const connectionInfo = getConnectionInfo(PORT);
+    
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📍 Local: ${connectionInfo.graphql.localhost}`);
+    
+    if (connectionInfo.graphql.localNetwork) {
+      console.log(`🌐 Network: ${connectionInfo.graphql.localNetwork}`);
+      console.log(`📱 Mobile apps should use: ${connectionInfo.graphql.localNetwork}`);
+    } else {
+      console.log(`⚠️  Could not detect network IP. Mobile apps might need manual configuration.`);
+    }
+    
+    console.log(`🔍 Connection info available at: ${connectionInfo.localhost}/api/system/connection-info`);
   });
 })();

@@ -26,8 +26,6 @@ export function contextFunction({ req }: { req: any }): GraphQLContext {
     authHeader = req.body.authorization;
   }
 
-  console.log("[CONTEXT] Auth header:", authHeader ? authHeader.substring(0, 20) + "..." : "none");
-
   let user: ContextUser | undefined = undefined;
 
   if (typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
@@ -39,7 +37,6 @@ export function contextFunction({ req }: { req: any }): GraphQLContext {
         id: decoded.id ?? decoded.userId,
         role: decoded.role,
       };
-      console.log("[CONTEXT] User authenticated:", { id: user.id, role: user.role });
     } catch (e: any) {
       // Handle different JWT errors more gracefully - only log once per unique error
       if (e.name === 'TokenExpiredError') {

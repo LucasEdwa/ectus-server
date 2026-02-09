@@ -93,6 +93,12 @@ export const shiftTrackingResolvers = {
         throw new Error('Authentication required');
       }
 
+      // Validate input types
+      if (typeof id !== 'number') throw new Error('ID must be an integer');
+      if (typeof end_time !== 'string') throw new Error('End time must be a string');
+      if (typeof total_worked_time !== 'number') throw new Error('Total worked time must be a number');
+      if (typeof shift_status !== 'string') throw new Error('Shift status must be a string');
+
       try {
         const completedShift = await stopShiftTracking(id, end_time, total_worked_time);
 

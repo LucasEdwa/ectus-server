@@ -98,12 +98,16 @@ export const userResolvers = {
       try {
         // Check if user already exists
         const [existingUsers]: any = await db.query(
-          "SELECT id FROM users WHERE email = ?",
+          "SELECT id, name, email, role, company_id FROM users WHERE email = ?",
           [email]
         );
         console.debug('[SIGNUP] Existing users:', existingUsers);
         if (existingUsers.length > 0) {
-          throw new Error("User with this email already exists");
+          // User already exists - return their data with a new token for idempotency
+          const user = existingUsers[0];
+          const token = generateToken(user);
+          console.debug('[SIGNUP] User already exists, returning new token');
+          return { token, user };
         }
         // Validate company_id if provided
         if (company_id) {
