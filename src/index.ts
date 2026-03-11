@@ -26,6 +26,8 @@ import { timeBalanceResolvers } from "./graphql/resolvers/timeBalanceResolver";
 import { timeBalanceSchema } from "./graphql/schemas/timeBalanceSchema";
 import { shiftTrackingResolvers } from "./graphql/resolvers/shiftTrackingResolver";
 import { shiftTrackingSchema } from "./graphql/schemas/shiftTrackingSchema";
+import { reportTypeDefs } from "./graphql/schemas/reportSchema";
+import { reportResolvers } from "./graphql/resolvers/reportResolver";
 import playground from 'graphql-playground-middleware-express';
 
 import { contextFunction } from "./graphql/context";
@@ -70,6 +72,7 @@ ${clientTypeDefs}
 ${documentTypeDefs}
 ${timeBalanceSchema}
 ${shiftTrackingSchema}
+${reportTypeDefs}
 
 `;
 
@@ -98,9 +101,11 @@ const resolvers = {
     ...(documentResolvers.Mutation || {}),
     ...(timeBalanceResolvers.Mutation || {}),
     ...(shiftTrackingResolvers.Mutation || {}),
+    ...(reportResolvers.Mutation || {}),
   },
   Document: documentResolvers.Document,
   TimeBalance: timeBalanceResolvers.TimeBalance,
+  // no type extension for Report currently
 };
 
 (async () => {

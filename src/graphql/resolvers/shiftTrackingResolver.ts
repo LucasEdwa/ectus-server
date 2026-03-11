@@ -6,6 +6,7 @@ import {
   stopShiftTracking
 } from '../../models/shiftTrackingModel';
 import { updateTimeBalanceByEmployeeId } from '../../models/timeBalanceModel';
+import { getShiftForEmployeeOnDate } from '../../models/shiftModel';
 
 interface Context {
   user?: {
@@ -61,6 +62,27 @@ export const shiftTrackingResolvers = {
           throw new Error('You already have an active shift. Please end it before starting a new one.');
         }
 
+        // ensure there is a scheduled shift for this date
+        const actualStart = new Date(start_time);
+        const dateKey = actualStart.toISOString().slice(0, 10); // YYYY-MM-DD
+        const schedule = await getShiftForEmployeeOnDate(context.user.id, dateKey);
+
+        if (!schedule) {
+          throw new Error(`No scheduled shift found for ${dateKey}`);
+        }
+
+        // build schedule boundaries
+        // construct local date/time objects; using space ensures Date parser treats them as local
+        const scheduledStart = new Date(`${dateKey} ${schedule.start_time}`);
+        const scheduledEnd = new Date(`${dateKey} ${schedule.end_time}`);
+
+        if (actualStart < scheduledStart) {
+          throw new Error('Cannot start shift before scheduled start time');
+        }
+        if (actualStart > scheduledEnd) {
+          throw new Error('Cannot start shift after scheduled end time');
+        }
+
         const shiftData = {
           employee_id: context.user.id,
           start_time,
@@ -100,6 +122,28 @@ export const shiftTrackingResolvers = {
       if (typeof shift_status !== 'string') throw new Error('Shift status must be a string');
 
       try {
+        // fetch existing active shift to validate against schedule
+        const currentShift = await getCurrentShiftByEmployee(context.user.id);
+        if (!currentShift || currentShift.id !== id) {
+          throw new Error('No matching active shift found');
+        }
+
+        const startMillis = parseInt(currentShift.start_time);
+        const shiftDate = new Date(startMillis).toISOString().slice(0, 10);
+        const schedule = await getShiftForEmployeeOnDate(context.user.id, shiftDate);
+        if (schedule) {
+          const scheduledStart = new Date(`${shiftDate} ${schedule.start_time}`);
+          const scheduledEnd = new Date(`${shiftDate} ${schedule.end_time}`);
+          const actualEnd = new Date(end_time);
+
+          if (actualEnd < scheduledStart) {
+            throw new Error('Cannot end shift before scheduled start time');
+          }
+          if (actualEnd > scheduledEnd) {
+            throw new Error('Cannot end shift after scheduled end time');
+          }
+        }
+
         const completedShift = await stopShiftTracking(id, end_time, total_worked_time);
 
         // Update time balance with worked hours
@@ -116,7 +160,7 @@ export const shiftTrackingResolvers = {
         return completedShift;
       } catch (error) {
         console.error('Error stopping shift:', error);
-        throw new Error('Failed to stop shift');
+        throw new Error(error instanceof Error ? error.message : 'Failed to stop shift');
       }
     },
 

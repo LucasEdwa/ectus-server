@@ -8,6 +8,7 @@ import { initShiftModel } from "./shiftModel";
 import { createClientsTable } from "./clientsModel";
 import { createDocumentsTable } from "./documentModel";
 import { initTimeBalanceModel } from "./timeBalanceModel";import { initShiftTrackingModel } from './shiftTrackingModel';
+import { initReportModel } from './reportModel';
 import {db} from "./db"; 
 
 export const initAllTables = async () => {
@@ -23,6 +24,7 @@ export const initAllTables = async () => {
   await createDocumentsTable();
   await initTimeBalanceModel();
   await initShiftTrackingModel();
+  await initReportModel();
 };
 
 // drop all tables

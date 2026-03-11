@@ -91,6 +91,18 @@ export const getShiftsByEmployee = async (employee_id: number): Promise<Shift[]>
   return rows;
 };
 
+// new utility used by shift tracking validation
+export const getShiftForEmployeeOnDate = async (
+  employee_id: number,
+  date: string
+): Promise<Shift | null> => {
+  const [rows]: any = await db.query(
+    `SELECT * FROM shifts WHERE employee_id = ? AND date = ? LIMIT 1`,
+    [employee_id, date]
+  );
+  return rows[0] || null;
+};
+
 export const updateShift = async (
   id: number,
   date: string,
