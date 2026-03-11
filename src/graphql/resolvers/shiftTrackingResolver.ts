@@ -18,6 +18,42 @@ interface Context {
   };
 }
 
+
+// helper moved outside resolver object so it can be referenced from both
+// mutations without violating object literal syntax.
+async function validateScheduledTime(
+  employeeId: number,
+  isoTimestamp: string,
+  when: 'start' | 'end'
+) {
+  const actual = new Date(isoTimestamp);
+  const dateKey = actual.toISOString().slice(0, 10);
+  const schedule = await getShiftForEmployeeOnDate(employeeId, dateKey);
+
+  if (!schedule) {
+    throw new Error(`No scheduled shift found for ${dateKey}`);
+  }
+
+  const scheduledStart = new Date(`${dateKey} ${schedule.start_time}`);
+  const scheduledEnd = new Date(`${dateKey} ${schedule.end_time}`);
+
+  if (when === 'start' && actual < scheduledStart) {
+    throw new Error('Cannot start shift before scheduled start time');
+  }
+  if (when === 'start' && actual > scheduledEnd) {
+    throw new Error('Cannot start shift after scheduled end time');
+  }
+  if (when === 'end' && actual < scheduledStart) {
+    throw new Error('Cannot end shift before scheduled start time');
+  }
+  if (when === 'end' && actual > scheduledEnd) {
+    throw new Error('Cannot end shift after scheduled end time');
+  }
+
+  // return schedule in case caller wants it
+  return schedule;
+}
+
 export const shiftTrackingResolvers = {
   Query: {
     getCurrentShift: async (_: any, __: any, context: Context) => {
@@ -56,32 +92,14 @@ export const shiftTrackingResolvers = {
       }
 
       try {
-        // Check if user already has an active shift
+        // make sure there are no active shifts already
         const existingShift = await getCurrentShiftByEmployee(context.user.id);
         if (existingShift) {
           throw new Error('You already have an active shift. Please end it before starting a new one.');
         }
 
-        // ensure there is a scheduled shift for this date
-        const actualStart = new Date(start_time);
-        const dateKey = actualStart.toISOString().slice(0, 10); // YYYY-MM-DD
-        const schedule = await getShiftForEmployeeOnDate(context.user.id, dateKey);
-
-        if (!schedule) {
-          throw new Error(`No scheduled shift found for ${dateKey}`);
-        }
-
-        // build schedule boundaries
-        // construct local date/time objects; using space ensures Date parser treats them as local
-        const scheduledStart = new Date(`${dateKey} ${schedule.start_time}`);
-        const scheduledEnd = new Date(`${dateKey} ${schedule.end_time}`);
-
-        if (actualStart < scheduledStart) {
-          throw new Error('Cannot start shift before scheduled start time');
-        }
-        if (actualStart > scheduledEnd) {
-          throw new Error('Cannot start shift after scheduled end time');
-        }
+        // validate against schedule boundaries (throws on failure)
+        await validateScheduledTime(context.user.id, start_time, 'start');
 
         const shiftData = {
           employee_id: context.user.id,
@@ -130,19 +148,8 @@ export const shiftTrackingResolvers = {
 
         const startMillis = parseInt(currentShift.start_time);
         const shiftDate = new Date(startMillis).toISOString().slice(0, 10);
-        const schedule = await getShiftForEmployeeOnDate(context.user.id, shiftDate);
-        if (schedule) {
-          const scheduledStart = new Date(`${shiftDate} ${schedule.start_time}`);
-          const scheduledEnd = new Date(`${shiftDate} ${schedule.end_time}`);
-          const actualEnd = new Date(end_time);
-
-          if (actualEnd < scheduledStart) {
-            throw new Error('Cannot end shift before scheduled start time');
-          }
-          if (actualEnd > scheduledEnd) {
-            throw new Error('Cannot end shift after scheduled end time');
-          }
-        }
+        // re‑use validation helper for symmetry with startShiftTracking
+        await validateScheduledTime(context.user.id, end_time, 'end');
 
         const completedShift = await stopShiftTracking(id, end_time, total_worked_time);
 
