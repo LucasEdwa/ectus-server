@@ -75,6 +75,7 @@ export const clientTypeDefs = `
   type Query {
     clients(company_id: ID!): [Client!]!
     client(id: ID!): Client
+    clientsByDate(company_id: Int!, date: String!): [Client!]!
   }
 
   type Mutation {
