@@ -10,6 +10,16 @@ export const clientResolvers = {
     async client(parent: any, { id }: { id: number }): Promise<Client | null> {
       const [rows]: any = await db.query("SELECT * FROM clients WHERE id = ?", [id]);
       return rows[0] || null;
+    },
+    // returns clients that have a shift on the given date for the company
+    async clientsByDate(parent: any, { company_id, date }: { company_id: number; date: string }): Promise<Client[]> {
+      const query = `
+        SELECT DISTINCT c.* FROM clients c
+        JOIN shifts s ON s.client_id = c.id
+        WHERE c.company_id = ? AND s.date = ?
+      `;
+      const [rows]: any = await db.query(query, [company_id, date]);
+      return rows;
     }
   },
   Mutation: {
