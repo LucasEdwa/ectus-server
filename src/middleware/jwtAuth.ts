@@ -1,8 +1,8 @@
+import dotenv from "dotenv";
 import { Request, Response, NextFunction } from "express";
-import jwt, { SignOptions } from "jsonwebtoken";
+import jwt, { JwtPayload, SignOptions } from "jsonwebtoken";
 import { db } from "../models/db";
 
-// Extend Express Request interface to include user
 declare global {
   namespace Express {
     interface Request {
@@ -11,10 +11,50 @@ declare global {
   }
 }
 
-// JWT Configuration
-const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
+dotenv.config();
+
+export const JWT_ISSUER = "ectus-server";
+export const JWT_AUDIENCE = "ectus-users";
+
+const JWT_VERIFY_OPTIONS: jwt.VerifyOptions = {
+  issuer: JWT_ISSUER,
+  audience: JWT_AUDIENCE,
+};
+
+export function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET?.trim();
+  if (!secret) {
+    throw new Error("JWT_SECRET environment variable is required.");
+  }
+  return secret;
+}
+
+/** Call after dotenv so misconfiguration fails fast at startup */
+export function assertJwtConfigured(): void {
+  getJwtSecret();
+}
+
+/** Same token extraction for GraphQL context and REST middleware */
+export function extractBearerToken(authHeader: string | undefined, body?: unknown): string | undefined {
+  let header = authHeader?.trim();
+  const bodyAuth =
+    body && typeof body === "object" && body !== null && "authorization" in body
+      ? String((body as { authorization?: unknown }).authorization ?? "").trim()
+      : "";
+  if (!header && bodyAuth) header = bodyAuth;
+  if (!header) return undefined;
+  if (header.startsWith("Bearer ")) return header.slice(7).trim() || undefined;
+  return header || undefined;
+}
+
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "24h";
 const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || "7d";
+
+function rejectRefreshTokenUsedAsAccess(decoded: string | JwtPayload): void {
+  if (typeof decoded === "object" && decoded !== null && (decoded as JwtPayload & { type?: string }).type === "refresh") {
+    throw new Error("Invalid token");
+  }
+}
 
 // Generate JWT token
 export const generateToken = (user: any): string => {
@@ -28,11 +68,11 @@ export const generateToken = (user: any): string => {
 
   const options: SignOptions = {
     expiresIn: JWT_EXPIRES_IN as SignOptions["expiresIn"],
-    issuer: "ectus-server",
-    audience: "ectus-users"
+    issuer: JWT_ISSUER,
+    audience: JWT_AUDIENCE,
   };
 
-  return jwt.sign(payload, JWT_SECRET, options);
+  return jwt.sign(payload, getJwtSecret(), options);
 };
 
 // Generate refresh token
@@ -46,20 +86,24 @@ export const generateRefreshToken = (user: any): string => {
 
   const options: SignOptions = {
     expiresIn: REFRESH_TOKEN_EXPIRES_IN as SignOptions["expiresIn"],
-    issuer: "ectus-server",
-    audience: "ectus-users"
+    issuer: JWT_ISSUER,
+    audience: JWT_AUDIENCE,
   };
 
-  return jwt.sign(payload, JWT_SECRET, options);
+  return jwt.sign(payload, getJwtSecret(), options);
 };
 
-// Verify JWT token
+/** Throws jwt.JsonWebTokenError / jwt.TokenExpiredError — for callers that need precise error kinds */
+export function decodeAccessToken(token: string): jwt.JwtPayload | string {
+  const decoded = jwt.verify(token, getJwtSecret(), JWT_VERIFY_OPTIONS);
+  rejectRefreshTokenUsedAsAccess(decoded);
+  return decoded;
+}
+
+// Verify access JWT (not refresh tokens)
 export const verifyToken = (token: string): any => {
   try {
-    return jwt.verify(token, JWT_SECRET, {
-      issuer: "ectus-server",
-      audience: "ectus-users"
-    });
+    return decodeAccessToken(token);
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
       throw new Error("Token has expired");
@@ -73,16 +117,18 @@ export const verifyToken = (token: string): any => {
 // Verify refresh token
 export const verifyRefreshToken = (token: string): any => {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET, {
-      issuer: "ectus-server",
-      audience: "ectus-users"
-    });
-    
+    const decoded = jwt.verify(token, getJwtSecret(), JWT_VERIFY_OPTIONS);
+
     // Check if it's actually a refresh token
-    if (typeof decoded === 'object' && decoded.type !== 'refresh') {
+    if (typeof decoded === "object" && decoded !== null) {
+      const payload = decoded as JwtPayload & { type?: string };
+      if (payload.type !== "refresh") {
+        throw new Error("Invalid refresh token");
+      }
+    } else {
       throw new Error("Invalid refresh token");
     }
-    
+
     return decoded;
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
@@ -115,11 +161,11 @@ export const cleanupExpiredTokens = async (): Promise<void> => {
 // JWT Authentication middleware for Express
 export const authenticateToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    let authHeader = req.headers.authorization || "";
-    if (!authHeader && req.body && req.body.authorization) {
-      authHeader = req.body.authorization;
-    }
-    const token = authHeader && authHeader.startsWith("Bearer ") ? authHeader.split(" ")[1] : authHeader;
+    const authHeader =
+      req.headers.authorization ||
+      (req.headers as { Authorization?: string }).Authorization ||
+      "";
+    const token = extractBearerToken(authHeader, req.body);
 
     if (!token) {
       res.status(401).json({

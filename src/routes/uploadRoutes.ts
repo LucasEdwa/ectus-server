@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { authenticateToken } from "../middleware/jwtAuth";
 
 const router = express.Router();
 
@@ -51,7 +52,7 @@ const upload = multer({
 });
 
 // Upload endpoint
-router.post("/upload", upload.single("document"), (req, res) => {
+router.post("/upload", authenticateToken, upload.single("document"), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });

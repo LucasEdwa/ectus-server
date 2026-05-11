@@ -1,55 +1,47 @@
 import jwt from "jsonwebtoken";
+import { decodeAccessToken, extractBearerToken } from "../middleware/jwtAuth";
+import type { ContextUser, GraphQLContext } from "./contextTypes";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your_jwt_secret";
-
-export interface ContextUser {
-  id?: number;
-  userId?: number;
-  email?: string;
-  role?: string;
-  [key: string]: any;
-}
-
-export interface GraphQLContext {
-  user?: ContextUser;
-}
+export type { ContextUser, GraphQLContext } from "./contextTypes";
 
 export function contextFunction({ req }: { req: any }): GraphQLContext {
-  let authHeader =
-    req.headers.authorization ||
-    req.headers.Authorization ||
+  const authHeader =
+    req.headers?.authorization ||
+    req.headers?.Authorization ||
     req.get?.("authorization") ||
     req.get?.("Authorization") ||
     "";
 
-  if (!authHeader && req.body && req.body.authorization) {
-    authHeader = req.body.authorization;
-  }
+  const token = extractBearerToken(
+    typeof authHeader === "string" ? authHeader : undefined,
+    req.body
+  );
 
-  let user: ContextUser | undefined = undefined;
+  let user: GraphQLContext["user"] = undefined;
 
-  if (typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
-    const token = authHeader.replace("Bearer ", "");
+  if (token) {
     try {
-      const decoded = jwt.verify(token, JWT_SECRET) as ContextUser;
-      user = {
-        ...decoded,
-        id: decoded.id ?? decoded.userId,
-        role: decoded.role,
-      };
-    } catch (e: any) {
-      // Handle different JWT errors more gracefully - only log once per unique error
-      if (e.name === 'TokenExpiredError') {
-        // Only log expired tokens occasionally to prevent spam
-        if (Math.random() < 0.01) { // Log only 1% of expired token attempts
-          console.warn("[contextFunction] JWT tokens are expiring - users may need to re-authenticate");
-        }
-      } else if (e.name === 'JsonWebTokenError') {
-        console.warn("[contextFunction] Invalid JWT token format provided");
+      const decoded = decodeAccessToken(token);
+      if (typeof decoded === "string") {
+        console.warn("[contextFunction] Unexpected string JWT payload");
       } else {
-        console.error("[contextFunction] Unexpected JWT error:", e.message);
+        const u = decoded as ContextUser;
+        user = {
+          ...u,
+          id: u.id ?? u.userId,
+          role: u.role as string | undefined,
+        };
       }
-      // user remains undefined, which is the correct behavior for invalid tokens
+    } catch (e: unknown) {
+      if (e instanceof jwt.TokenExpiredError) {
+        if (Math.random() < 0.01) {
+          console.warn("[contextFunction] JWT tokens are expiring — clients may need to re-authenticate");
+        }
+      } else if (e instanceof jwt.JsonWebTokenError) {
+        console.warn("[contextFunction] Invalid JWT token format provided");
+      } else if (e instanceof Error) {
+        console.warn("[contextFunction] JWT verification failed:", e.message);
+      }
     }
   }
 
