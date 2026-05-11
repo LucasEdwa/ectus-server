@@ -11,14 +11,6 @@ interface Report {
 }
 
 export const initReportModel = async (): Promise<void> => {
-  // If table exists with wrong schema, alter it first
-  await db.query(`
-    ALTER TABLE reports
-    MODIFY COLUMN author_id INT UNSIGNED NULL,
-    DROP FOREIGN KEY IF EXISTS reports_ibfk_2,
-    ADD FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE SET NULL;
-  `).catch(() => {}); // ignore errors if table doesn't exist yet
-
   await db.query(`
     CREATE TABLE IF NOT EXISTS reports (
       id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -31,7 +23,7 @@ export const initReportModel = async (): Promise<void> => {
       FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE SET NULL,
       INDEX idx_client_id (client_id),
       INDEX idx_date (date)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `);
 };
 

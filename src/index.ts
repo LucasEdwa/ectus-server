@@ -36,6 +36,7 @@ import { getConnectionInfo } from "./utils/networkUtils";
 import systemRoutes from "./routes/systemRoutes";
 import secureFileRoutes from "./routes/secureFileRoutes";
 import { assertJwtConfigured } from "./middleware/jwtAuth";
+import { runPendingSqlMigrations } from "./db/runPendingSqlMigrations";
 
 dotenv.config();
 assertJwtConfigured();
@@ -130,6 +131,7 @@ const resolvers = {
 
   await checkDatabaseTimezone(); // Check database timezone settings
   await initAllTables(); // Then initialize tables
+  await runPendingSqlMigrations();
   await removeCategoryColumnIfExists();
   await fixPaylistPaths(); // Fix existing paylist paths
 

@@ -1,5 +1,5 @@
-import { db } from "../../models/db";
 import { Company, CreateCompanyInput, UpdateCompanyInput } from "../../types/company";
+import { db } from "../../models/db";
 import { parseInput } from "../../validation/parse";
 import {
   companyQueryIdSchema,
@@ -7,6 +7,7 @@ import {
   updateCompanySchema,
 } from "../../validation/schemas";
 import { assertAuthenticated, resolveViewerCompanyId } from "../auth/userAccess";
+import { findCompanyById } from "../../repositories/companyRepository";
 
 export const companyResolvers = {
   Query: {
@@ -14,8 +15,8 @@ export const companyResolvers = {
       assertAuthenticated(context.user);
       try {
         const cid = await resolveViewerCompanyId(context.user);
-        const [rows]: any = await db.query("SELECT * FROM companies WHERE id = ?", [cid]);
-        return rows;
+        const row = await findCompanyById(cid);
+        return row ? ([row] as unknown as Company[]) : [];
       } catch {
         return [];
       }
@@ -27,8 +28,8 @@ export const companyResolvers = {
       if (Number(id) !== viewerCompany) {
         throw new Error("Not authorized to view this company.");
       }
-      const [rows]: any = await db.query("SELECT * FROM companies WHERE id = ?", [id]);
-      return rows[0] || null;
+      const row = await findCompanyById(Number(id));
+      return (row as unknown as Company) ?? null;
     },
   },
   Mutation: {
