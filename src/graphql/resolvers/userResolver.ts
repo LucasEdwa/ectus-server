@@ -6,53 +6,41 @@ import {
   LoginInput,
   AuthPayload,
 } from "../../types/user";
-import { generateToken, generateRefreshToken, verifyRefreshToken } from "../../middleware/jwtAuth";
+import {
+  generateToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+} from "../../middleware/jwtAuth";
+import {
+  assertAuthenticated,
+  canViewOtherUsersInCompany,
+  resolveViewerCompanyId,
+} from "../auth/userAccess";
+import { parseInput } from "../../validation/parse";
+import { loginSchema, refreshTokenSchema, signupSchema } from "../../validation/schemas";
 
 export const userResolvers = {
   Query: {
     
-    async users(): Promise<User[]> {
+    async users(parent: any, args: any, context: any): Promise<User[]> {
+      assertAuthenticated(context.user);
+      const companyId = await resolveViewerCompanyId(context.user);
       const [rows]: any = await db.query(
-        "SELECT id, name, email, role, company_id, created_at FROM users"
+        "SELECT id, name, email, role, company_id, created_at FROM users WHERE company_id = ? ORDER BY id ASC",
+        [companyId]
       );
       return rows;
     },
     async usersByCompany(parent: any, args: { company_id: number }, context: any): Promise<User[]> {
-      console.log('=== usersByCompany Debug (After Fix) ===');
-      console.log('context.user:', context.user);
-      console.log('args.company_id:', args.company_id, typeof args.company_id);
-      console.log('context.user.company_id:', context.user?.company_id, typeof context.user?.company_id);
-      console.log('Match?', context.user?.company_id === args.company_id);
-      
-      if (!context.user) {
-        throw new Error("Not authenticated");
-      }
-      // Verify user belongs to the company they're querying
-      if (context.user.company_id !== args.company_id) {
-        console.log('❌ Authorization failed - company_id mismatch');
-        console.log('Expected:', args.company_id, 'Got:', context.user.company_id);
-        
-        // TEMPORARY: If company_id is undefined, fetch it from database
-        if (context.user.company_id === undefined) {
-          console.log('⚠️  TEMPORARY FIX: Fetching company_id from database');
-          const [userRows]: any = await db.query(
-            "SELECT company_id FROM users WHERE id = ?",
-            [context.user.id]
-          );
-          if (userRows.length > 0 && userRows[0].company_id === args.company_id) {
-            console.log('✅ TEMPORARY: User belongs to company', args.company_id);
-          } else {
-            throw new Error("Not authorized to view users from this company");
-          }
-        } else {
-          throw new Error("Not authorized to view users from this company");
-        }
+      assertAuthenticated(context.user);
+      const viewerCompany = await resolveViewerCompanyId(context.user);
+      if (Number(args.company_id) !== viewerCompany) {
+        throw new Error("Not authorized to view users from this company");
       }
       const [rows]: any = await db.query(
-        "SELECT id, name, email, role, company_id, created_at FROM users WHERE company_id = ?",
+        "SELECT id, name, email, role, company_id, created_at FROM users WHERE company_id = ? ORDER BY id ASC",
         [args.company_id]
       );
-      console.log('✅ Returning', rows.length, 'users');
       return rows;
     },
     async roles(): Promise<string[]> {
@@ -75,26 +63,54 @@ export const userResolvers = {
     },
     async userById(
       parent: any,
-      args: { id: number }
+      args: { id: number },
+      context: any
     ): Promise<User | null> {
+      assertAuthenticated(context.user);
+      const viewer = context.user;
+
+      if (Number(args.id) === Number(viewer.id)) {
+        const [rows]: any = await db.query(
+          "SELECT id, name, email, role, company_id, created_at FROM users WHERE id = ?",
+          [args.id]
+        );
+        return rows.length > 0 ? rows[0] : null;
+      }
+
+      if (!canViewOtherUsersInCompany(viewer)) {
+        throw new Error("Not authorized to view this user.");
+      }
+
       const [rows]: any = await db.query(
         "SELECT id, name, email, role, company_id, created_at FROM users WHERE id = ?",
         [args.id]
       );
-      return rows.length > 0 ? rows[0] : null;
+      if (rows.length === 0) {
+        return null;
+      }
+      const target = rows[0];
+      const viewerCompany = await resolveViewerCompanyId(viewer);
+      if (Number(target.company_id) !== viewerCompany) {
+        throw new Error("Not authorized to view this user.");
+      }
+      return target;
     },
-    async companies(): Promise<any[]> {
-      const [rows]: any = await db.query("SELECT id, name FROM companies");
-      return rows;
+    async companies(_: unknown, __: unknown, context: any): Promise<any[]> {
+      assertAuthenticated(context.user);
+      try {
+        const cid = await resolveViewerCompanyId(context.user);
+        const [rows]: any = await db.query("SELECT id, name FROM companies WHERE id = ?", [cid]);
+        return rows;
+      } catch {
+        return [];
+      }
     },
   },
   Mutation: {
     async signup(parent: any, args: CreateUserInput): Promise<AuthPayload> {
-      const { name, email, password, role, company_id } = args;
-      console.debug('[SIGNUP] Received args:', args);
-      if (!name || name.trim() === "") {
-        throw new Error("Signup failed: Name is required and cannot be empty.");
-      }
+      const parsed = parseInput(signupSchema, args);
+      const { name, email, password, role, company_id } = parsed;
+      console.debug("[SIGNUP] Received args:", args);
       try {
         // Check if user already exists
         const [existingUsers]: any = await db.query(
@@ -103,11 +119,7 @@ export const userResolvers = {
         );
         console.debug('[SIGNUP] Existing users:', existingUsers);
         if (existingUsers.length > 0) {
-          // User already exists - return their data with a new token for idempotency
-          const user = existingUsers[0];
-          const token = generateToken(user);
-          console.debug('[SIGNUP] User already exists, returning new token');
-          return { token, user };
+          throw new Error("An account with this email already exists. Please log in.");
         }
         // Validate company_id if provided
         if (company_id) {
@@ -150,7 +162,7 @@ export const userResolvers = {
     },
 
     async login(parent: any, args: LoginInput): Promise<AuthPayload> {
-      const { email, password } = args;
+      const { email, password } = parseInput(loginSchema, args);
       try {
         // Find user
         const [userRows]: any = await db.query(
@@ -187,8 +199,8 @@ export const userResolvers = {
 
     async refreshToken(parent: any, args: { refreshToken: string }): Promise<AuthPayload> {
       try {
-        // Verify the refresh token
-        const decoded = verifyRefreshToken(args.refreshToken);
+        const { refreshToken } = parseInput(refreshTokenSchema, args);
+        const decoded = verifyRefreshToken(refreshToken);
         
         // Find user to get latest data
         const [userRows]: any = await db.query(

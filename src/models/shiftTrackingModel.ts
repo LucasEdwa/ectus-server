@@ -1,3 +1,14 @@
+/**
+ * Shift tracking model – payment-grade time capture.
+ *
+ * Payment source of truth: use shift_tracking.total_worked_time (seconds).
+ * For paylists/PDF use: hours = total_worked_time / 3600.
+ *
+ * Lifecycle: start (capture start_time) → take break (break_start) →
+ * end break (break_end, total_break_time and break_count computed here) →
+ * stop (end_time, total_worked_time = (end − start) − total_break_time).
+ * All duration math is done on the server from stored timestamps.
+ */
 import { db } from './db';
 import { RowDataPacket, ResultSetHeader } from 'mysql2';
 
@@ -55,29 +66,6 @@ export const initShiftTrackingModel = async () => {
 
 export const createShiftTracking = async (shiftData: Omit<ShiftTracking, 'id' | 'created_at'>): Promise<ShiftTracking> => {
   try {
-    // Convert ISO string to MySQL datetime format
-    const formatDateForMySQL = (isoString: string) => {
-      const date = new Date(isoString);
-      const formatted = date.toISOString().slice(0, 19).replace('T', ' ');
-      
-      console.log('[SERVER] formatDateForMySQL:', {
-        input: isoString,
-        inputType: typeof isoString,
-        parsedDate: date.toISOString(),
-        mysqlFormatted: formatted,
-        timezoneOffset: date.getTimezoneOffset()
-      });
-      
-      return formatted;
-    };
-
-    console.log('[SERVER] Creating shift with start_time:', {
-      originalStartTime: shiftData.start_time,
-      startTimeType: typeof shiftData.start_time,
-      currentServerTime: new Date().toISOString(),
-      currentServerTimeMs: Date.now()
-    });
-
     const formattedStartTime = formatDateForMySQL(shiftData.start_time);
 
     const query = `
@@ -108,6 +96,30 @@ export const createShiftTracking = async (shiftData: Omit<ShiftTracking, 'id' | 
     throw error;
   }
 };
+
+/** Get one shift by id (raw row for server-side logic). */
+export const getShiftTrackingById = async (id: number): Promise<ShiftTracking | null> => {
+  try {
+    const [rows] = await db.query<RowDataPacket[]>(
+      'SELECT * FROM shift_tracking WHERE id = ?',
+      [id]
+    );
+    return (rows[0] as ShiftTracking) || null;
+  } catch (error) {
+    console.error('Error getting shift tracking by id:', error);
+    throw error;
+  }
+};
+
+/**
+ * Single formula for payment-grade net worked time (seconds).
+ * net = (end − start) − total_break_time. All timestamps in same timezone (UTC stored).
+ */
+export const computeNetWorkedSeconds = (
+  startTime: Date,
+  endTime: Date,
+  totalBreakSeconds: number
+): number => Math.max(0, Math.floor((endTime.getTime() - startTime.getTime()) / 1000) - totalBreakSeconds);
 
 export const getCurrentShiftByEmployee = async (employeeId: number): Promise<ShiftTracking | null> => {
   try {
@@ -233,23 +245,19 @@ export const stopShiftTracking = async (
     }
 
     const currentShift = currentRows[0] as ShiftTracking;
-    
-    // Calculate actual work time based on server timestamps
-    const startTime = new Date(currentShift.start_time).getTime();
-    const endTimeMs = new Date(endTime).getTime();
-    const totalElapsedSeconds = Math.floor((endTimeMs - startTime) / 1000);
-    const breakTimeSeconds = currentShift.total_break_time || 0;
-    const actualWorkedTime = Math.max(0, totalElapsedSeconds - breakTimeSeconds);
+    const startDate = new Date(currentShift.start_time);
+    const endDate = new Date(endTime);
+    const actualWorkedTime = computeNetWorkedSeconds(
+      startDate,
+      endDate,
+      currentShift.total_break_time || 0
+    );
 
     console.log('[SERVER] Shift time calculation:', {
       shiftId: id,
       startTime: currentShift.start_time,
       endTime: endTime,
-      startTimeMs: startTime,
-      endTimeMs: endTimeMs,
-      totalElapsedSeconds: totalElapsedSeconds,
-      breakTimeSeconds: breakTimeSeconds,
-      actualWorkedTime: actualWorkedTime,
+      actualWorkedTime,
       clientCalculation: totalWorkedTime,
       difference: actualWorkedTime - totalWorkedTime
     });

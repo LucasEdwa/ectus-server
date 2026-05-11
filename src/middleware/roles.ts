@@ -47,3 +47,22 @@ export function canCreatePaylist(user: any): void {
     throw new Error("Not authorized to create paylists.");
   }
 }
+
+export function canManageClients(user: any): void {
+  if (!user) {
+    throw new Error("Not authenticated");
+  }
+  if (user.role !== "finance" && user.role !== "leader" && user.role !== "hr") {
+    throw new Error("Not authorized to manage clients.");
+  }
+}
+
+/** Same role gate as clients — used for time balances and other workforce records */
+export function canManageWorkforceRecords(user: any): void {
+  if (!user) {
+    throw new Error("Not authenticated");
+  }
+  if (user.role !== "finance" && user.role !== "leader" && user.role !== "hr") {
+    throw new Error("Not authorized to manage workforce records.");
+  }
+}

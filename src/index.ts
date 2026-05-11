@@ -1,7 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
-import cors from "cors";
-import path from "path";
+import cors, { type CorsOptions } from "cors";
 import { initAllTables } from "./models/initAllTables";
 import { graphqlHTTP } from "express-graphql";
 import { makeExecutableSchema } from '@graphql-tools/schema';
@@ -35,21 +34,39 @@ import { fixPaylistPaths } from "./migrations/fixPaylistPaths";
 import { checkDatabaseTimezone } from "./models/db";
 import { getConnectionInfo } from "./utils/networkUtils";
 import systemRoutes from "./routes/systemRoutes";
+import secureFileRoutes from "./routes/secureFileRoutes";
+import { assertJwtConfigured } from "./middleware/jwtAuth";
 
 dotenv.config();
+assertJwtConfigured();
+
+const enableGraphiQL =
+  process.env.NODE_ENV !== "production" && process.env.DISABLE_GRAPHIQL !== "1";
+
+function corsOptions(): CorsOptions {
+  const raw = process.env.CORS_ORIGIN ?? "";
+  const list = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (list.length > 0) {
+    return { origin: list, credentials: true };
+  }
+  if (process.env.NODE_ENV === "production") {
+    console.warn(
+      "[CORS] CORS_ORIGIN is unset in production; cross-origin browser requests will be denied. Set CORS_ORIGIN to a comma-separated allowlist."
+    );
+    return { origin: false, credentials: true };
+  }
+  return { origin: true, credentials: true };
+}
 
 const app = express();
 app.use(express.json());
-app.use(cors({
-  origin: "*",
-  credentials: true
-}));
+app.use(cors(corsOptions()));
 
-// Serve PDF files from the paylists directory
-app.use('/paylists', express.static(path.join(__dirname, '../paylists')));
-
-// Serve documents from the documents directory
-app.use('/documents', express.static(path.join(__dirname, '../documents')));
+/** PDFs and uploads — require JWT (same paths as stored file_url / pdf_url) */
+app.use(secureFileRoutes);
 
 // Upload route
 import uploadRoutes from "./routes/uploadRoutes";
@@ -89,6 +106,7 @@ const resolvers = {
     ...(documentResolvers.Query || {}),
     ...(timeBalanceResolvers.Query || {}),
     ...(shiftTrackingResolvers.Query || {}),
+    ...(reportResolvers.Query || {}),
   },
   Mutation: {
     ...(userResolvers.Mutation || {}),
@@ -127,14 +145,16 @@ const resolvers = {
      
       return {
         schema,
-        graphiql: true,
+        graphiql: enableGraphiQL,
         context: contextFunction({ req }),
       
       };
     })
   );
-app.get('/playground', playground({ endpoint: '/graphql' }));
-  app.listen(PORT, '0.0.0.0', () => {
+  if (enableGraphiQL) {
+    app.get("/playground", playground({ endpoint: "/graphql" }));
+  }
+  app.listen(PORT, "0.0.0.0", () => {
     const connectionInfo = getConnectionInfo(PORT);
     
     console.log(`🚀 Server running on port ${PORT}`);

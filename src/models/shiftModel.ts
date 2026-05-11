@@ -68,7 +68,10 @@ export const createShift = async (
     );
     const [rows]: any = await db.query("SELECT * FROM shifts WHERE id = ?", [result.insertId]);
     return rows[0];
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code === 'ER_DUP_ENTRY' && error?.message?.includes('unique_shift')) {
+      throw new Error('You already have a shift on this date at this start time. Choose a different time or date.');
+    }
     console.error("Error in createShift:", error);
     throw error;
   }
@@ -119,8 +122,8 @@ export const updateShift = async (
   }
 
   await db.query(
-    `UPDATE shifts SET date = ?, start_time = ?, end_time = ?, hourly_rate = ?, break_duration = ? WHERE id = ?, user_id = ?`,
-    [date, start_time, end_time, hourly_rate, breakDurationValue, id, user_id]
+    `UPDATE shifts SET date = ?, start_time = ?, end_time = ?, hourly_rate = ?, break_duration = ?, user_id = ? WHERE id = ?`,
+    [date, start_time, end_time, hourly_rate, breakDurationValue, user_id, id]
   );
   const [rows]: any = await db.query("SELECT * FROM shifts WHERE id = ?", [id]);
   return rows[0];

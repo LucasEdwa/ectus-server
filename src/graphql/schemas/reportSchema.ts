@@ -8,12 +8,12 @@ export const reportTypeDefs = `
     created_at: String!
   }
 
-  type Query {
+  extend type Query {
     reportsByClient(client_id: Int!): [Report!]!
     reportsByDate(date: String!): [Report!]!
   }
 
-  type Mutation {
+  extend type Mutation {
     addReport(
       client_id: Int!
       date: String!

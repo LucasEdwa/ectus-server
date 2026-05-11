@@ -62,10 +62,16 @@ export const getReportsByClient = async (client_id: number): Promise<Report[]> =
   return rows as Report[];
 };
 
-export const getReportsByDate = async (date: string): Promise<Report[]> => {
+export const getReportsByDateForCompany = async (
+  date: string,
+  companyId: number
+): Promise<Report[]> => {
   const [rows]: any = await db.query<RowDataPacket[]>(
-    `SELECT * FROM reports WHERE date = ? ORDER BY client_id`,
-    [date]
+    `SELECT r.* FROM reports r
+     INNER JOIN clients c ON c.id = r.client_id
+     WHERE r.date = ? AND c.company_id = ?
+     ORDER BY r.client_id`,
+    [date, companyId]
   );
   return rows as Report[];
 };

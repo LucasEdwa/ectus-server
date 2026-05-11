@@ -1,6 +1,7 @@
 import { 
   createShiftTracking,
   getCurrentShiftByEmployee,
+  getShiftTrackingById,
   updateShiftTracking,
   getShiftHistory,
   stopShiftTracking
@@ -92,13 +93,14 @@ export const shiftTrackingResolvers = {
       }
 
       try {
-        // make sure there are no active shifts already
+        const startDate = new Date(start_time);
+        if (Number.isNaN(startDate.getTime())) {
+          throw new Error('Invalid start time.');
+        }
         const existingShift = await getCurrentShiftByEmployee(context.user.id);
         if (existingShift) {
           throw new Error('You already have an active shift. Please end it before starting a new one.');
         }
-
-        // validate against schedule boundaries (throws on failure)
         await validateScheduledTime(context.user.id, start_time, 'start');
 
         const shiftData = {
@@ -145,20 +147,24 @@ export const shiftTrackingResolvers = {
         if (!currentShift || currentShift.id !== id) {
           throw new Error('No matching active shift found');
         }
+        if (currentShift.on_break) {
+          throw new Error('End your break before stopping the shift.');
+        }
 
-        const startMillis = parseInt(currentShift.start_time);
-        const shiftDate = new Date(startMillis).toISOString().slice(0, 10);
-        // re‑use validation helper for symmetry with startShiftTracking
+        const endDate = new Date(end_time);
+        if (Number.isNaN(endDate.getTime())) {
+          throw new Error('Invalid end time.');
+        }
         await validateScheduledTime(context.user.id, end_time, 'end');
 
         const completedShift = await stopShiftTracking(id, end_time, total_worked_time);
 
-        // Update time balance with worked hours
-        const workedHours = total_worked_time / 3600; // Convert seconds to hours
-        
+        // Payment source of truth: use server-computed total_worked_time from shift_tracking
+        const workedHours = completedShift.total_worked_time / 3600;
+
         try {
           await updateTimeBalanceByEmployeeId(context.user.id, {
-            flexible_hours: workedHours, // Add worked hours to flexible balance
+            flexible_hours: workedHours,
           });
         } catch (error) {
           console.log('Note: Time balance update failed, but shift was completed successfully');
@@ -197,20 +203,53 @@ export const shiftTrackingResolvers = {
       }
 
       try {
-        const updates: any = {};
-        
-        if (on_break !== undefined) updates.on_break = on_break;
-        if (break_start !== undefined) updates.break_start = break_start;
-        if (break_end !== undefined) updates.break_end = break_end;
-        if (total_break_time !== undefined) updates.total_break_time = total_break_time;
-        if (break_count !== undefined) updates.break_count = break_count;
-        if (shift_status !== undefined) updates.shift_status = shift_status;
+        const current = await getShiftTrackingById(id);
+        if (!current || current.employee_id !== context.user!.id) {
+          throw new Error('Shift not found or access denied');
+        }
+        if (current.shift_status === 'completed') {
+          throw new Error('Cannot update a completed shift');
+        }
 
-        const updatedShift = await updateShiftTracking(id, updates);
+        const updates: Record<string, unknown> = {};
+        const now = new Date().toISOString();
+
+        if (on_break === true) {
+          if (current.on_break) {
+            throw new Error('Already on break');
+          }
+          updates.on_break = true;
+          updates.shift_status = 'on_break';
+          updates.break_start = break_start || now;
+        } else if (on_break === false) {
+          if (!current.on_break) {
+            if (break_start !== undefined) updates.break_start = break_start;
+            if (break_end !== undefined) updates.break_end = break_end;
+            if (total_break_time !== undefined) updates.total_break_time = total_break_time;
+            if (break_count !== undefined) updates.break_count = break_count;
+            if (shift_status !== undefined) updates.shift_status = shift_status;
+          } else {
+            const breakStartDate = current.break_start ? new Date(current.break_start) : new Date();
+            const breakDurationSeconds = Math.max(0, Math.floor((Date.now() - breakStartDate.getTime()) / 1000));
+            updates.on_break = false;
+            updates.shift_status = 'active';
+            updates.break_end = break_end || now;
+            updates.total_break_time = (current.total_break_time || 0) + breakDurationSeconds;
+            updates.break_count = (current.break_count || 0) + 1;
+          }
+        } else {
+          if (break_start !== undefined) updates.break_start = break_start;
+          if (break_end !== undefined) updates.break_end = break_end;
+          if (total_break_time !== undefined) updates.total_break_time = total_break_time;
+          if (break_count !== undefined) updates.break_count = break_count;
+          if (shift_status !== undefined) updates.shift_status = shift_status;
+        }
+
+        const updatedShift = await updateShiftTracking(id, updates as any);
         return updatedShift;
       } catch (error) {
-        console.error('Error updating shift:', error);
-        throw new Error('Failed to update shift');
+        console.error('Error updating shift tracking:', error);
+        throw new Error(error instanceof Error ? error.message : 'Failed to update shift tracking');
       }
     },
   },
